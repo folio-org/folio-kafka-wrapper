@@ -83,7 +83,7 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
   }
 
   public Future<Void> start(AsyncRecordHandler<K, V> businessHandler, String moduleName) {
-    LOGGER.info("KafkaConsumerWrapper is starting for module: {}", moduleName);
+    LOGGER.debug("KafkaConsumerWrapper is starting for module: {}", moduleName);
 
     if (businessHandler == null) {
       String failureMessage = "businessHandler must be provided and can't be null.";
@@ -117,7 +117,7 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
     Pattern pattern = Pattern.compile(subscriptionDefinition.getSubscriptionPattern());
     kafkaConsumer.subscribe(pattern, ar -> {
       if (ar.succeeded()) {
-        LOGGER.info("Consumer created - id: " + id + " subscriptionPattern: " + subscriptionDefinition);
+        LOGGER.info("Consumer created - id: {} subscriptionPattern: {}", id, subscriptionDefinition);
         startPromise.complete();
       } else {
         LOGGER.error("Consumer creation failed", ar.cause());
@@ -132,15 +132,15 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
     Promise<Void> stopPromise = Promise.promise();
     kafkaConsumer.unsubscribe(uar -> {
         if (uar.succeeded()) {
-          LOGGER.info("Consumer unsubscribed - id: " + id + " subscriptionPattern: " + subscriptionDefinition);
+          LOGGER.info("Consumer unsubscribed - id: {} subscriptionPattern: {}", id, subscriptionDefinition);
         } else {
-          LOGGER.error("Consumer not unsubscribed - id: " + id + " subscriptionPattern: " + subscriptionDefinition + "\n" + uar.cause());
+          LOGGER.error("Consumer was not unsubscribed - id: {} subscriptionPattern: {}", id, subscriptionDefinition, uar.cause());
         }
         kafkaConsumer.close(car -> {
           if (uar.succeeded()) {
-            LOGGER.info("Consumer closed - id: " + id + " subscriptionPattern: " + subscriptionDefinition);
+            LOGGER.info("Consumer closed - id: {} subscriptionPattern: {}", id, subscriptionDefinition);
           } else {
-            LOGGER.error("Consumer not closed - id: " + id + " subscriptionPattern: " + subscriptionDefinition + "\n" + car.cause());
+            LOGGER.error("Consumer was not closed - id: {} subscriptionPattern: {}", id, subscriptionDefinition, car.cause());
           }
           stopPromise.complete();
         });
@@ -161,16 +161,12 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
       LOGGER.debug("Threshold is exceeded, preparing to pause, globalLoad: {}, currentLoad: {}, requestNo: {}", globalLoad, currentLoad, requestNo);
       if (requestNo == 0) {
         kafkaConsumer.pause();
-        LOGGER.info("Consumer - id: " + id + " subscriptionPattern: " + subscriptionDefinition + " kafkaConsumer.pause() requested" + " currentLoad: " + currentLoad + " loadLimit: " + loadLimit);
+        LOGGER.info("Consumer - id: {} subscriptionPattern: {} kafkaConsumer.pause() requested" + " currentLoad: {}, loadLimit: {}", id, subscriptionDefinition, currentLoad, loadLimit);
       }
     }
 
-
-    LOGGER.debug("Consumer - id: " + id +
-      " subscriptionPattern: " + subscriptionDefinition +
-      " a Record has been received. key: " + record.key() +
-      " currentLoad: " + currentLoad +
-      " globalLoad: " + (globalLoadSensor != null ? String.valueOf(globalLoadSensor.current()) : "N/A"));
+    LOGGER.debug("Consumer - id: {} subscriptionPattern: {} a Record has been received. key: {} currentLoad: {} globalLoad: {}",
+      id, subscriptionDefinition, record.key(), currentLoad, globalLoadSensor != null ? String.valueOf(globalLoadSensor.current()) : "N/A");
 
     businessHandler.handle(record).onComplete(businessHandlerCompletionHandler(record));
 
@@ -186,17 +182,17 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
         TopicPartition topicPartition = new TopicPartition(record.topic(), record.partition());
         OffsetAndMetadata offsetAndMetadata = new OffsetAndMetadata(offset, null);
         offsets.put(topicPartition, offsetAndMetadata);
-        LOGGER.info("Consumer - id: " + id + " subscriptionPattern: " + subscriptionDefinition + " Committing offset: " + offset);
+        LOGGER.debug("Consumer - id: {} subscriptionPattern: {} Committing offset: {}", id, subscriptionDefinition, offset);
         kafkaConsumer.commit(offsets, ar -> {
           if (ar.succeeded()) {
-            LOGGER.debug("Consumer - id: " + id + " subscriptionPattern: " + subscriptionDefinition + " Committed offset: " + offset);
+            LOGGER.info("Consumer - id: {} subscriptionPattern: {} Committed offset: {}", id, subscriptionDefinition, offset);
           } else {
-            LOGGER.error("Consumer - id: " + id + " subscriptionPattern: " + subscriptionDefinition + " Error while commit offset: " + offset, ar.cause());
+            LOGGER.error("Consumer - id: {} subscriptionPattern: {} Error while commit offset: {}", id, subscriptionDefinition, offset, ar.cause());
           }
         });
 
         if (har.failed()) {
-          LOGGER.error("Error while processing a record - id: " + id + " subscriptionPattern: " + subscriptionDefinition + "\n" + har.cause());
+          LOGGER.error("Error while processing a record - id: {} subscriptionPattern: {}", id, subscriptionDefinition, har.cause());
           if (processRecordErrorHandler != null) {
             processRecordErrorHandler.handle(har.cause(), record);
           }
@@ -212,7 +208,7 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
           if (requestNo == 0) {
 //           synchronized (this) { all this is handled within the same verticle
             kafkaConsumer.resume();
-            LOGGER.info("Consumer - id: " + id + " subscriptionPattern: " + subscriptionDefinition + " kafkaConsumer.resume() requested" + " currentLoad: " + actualCurrentLoad + " loadBottomGreenLine: " + loadBottomGreenLine);
+            LOGGER.info("Consumer - id: {} subscriptionPattern: {} kafkaConsumer.resume() requested currentLoad: {} loadBottomGreenLine: {}", id, subscriptionDefinition, actualCurrentLoad, loadBottomGreenLine);
 //            }
           }
         }
