@@ -1,4 +1,4 @@
-# data-import-utils
+# folio-kafka-wrapper
 
 Copyright (C) 2021 The Open Library Foundation
 
