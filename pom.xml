@@ -20,6 +20,8 @@
     <junit.version>4.13.1</junit.version>
     <lombok.version>1.18.12</lombok.version>
     <commons-lang3.version>3.10</commons-lang3.version>
+    <sonar.exclusions>**/org/folio/kafka/SpringKafkaProperties.java</sonar.exclusions>
+    <sonar.exclusions>**/org/folio/kafka/cache/KafkaInternalCache.java</sonar.exclusions>
   </properties>
 
   <repositories>
