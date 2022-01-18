@@ -12,12 +12,8 @@ import net.mguenther.kafka.junit.EmbeddedKafkaCluster;
 import net.mguenther.kafka.junit.EmbeddedKafkaClusterConfig;
 import net.mguenther.kafka.junit.KeyValue;
 import net.mguenther.kafka.junit.SendKeyValues;
-import net.mguenther.kafka.junit.Wait;
-import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -26,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
@@ -216,12 +211,10 @@ public class KafkaConsumerWrapperTest {
       .processRecordErrorHandler(recordErrorHandler)
       .build();
 
-    Promise<String> eventHandlingRes = Promise.promise();
     kafkaConsumerWrapper
       .start(record -> {
-        eventHandlingRes.fail("");
         async.complete();
-        return eventHandlingRes.future();
+        return Future.failedFuture("test error msg");
       }, MODULE_NAME)
       .onComplete(v -> sendRecord("1", "test_payload", topicName, testContext));
 
