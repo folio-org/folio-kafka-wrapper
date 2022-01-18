@@ -15,8 +15,10 @@ import net.mguenther.kafka.junit.SendKeyValues;
 import net.mguenther.kafka.junit.Wait;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -45,14 +47,14 @@ public class KafkaConsumerWrapperTest {
   private static final String TENANT_ID = "diku";
   private static final String MODULE_NAME = "test_module";
 
-  @ClassRule
-  public static EmbeddedKafkaCluster kafkaCluster = provisionWith(EmbeddedKafkaClusterConfig.useDefaults());
-  private static Vertx vertx = Vertx.vertx();
-  private static KafkaConfig kafkaConfig;
-  private static KafkaAdminClient kafkaAdminClient;
+  @Rule
+  public EmbeddedKafkaCluster kafkaCluster = provisionWith(EmbeddedKafkaClusterConfig.useDefaults());
+  private Vertx vertx = Vertx.vertx();
+  private KafkaConfig kafkaConfig;
+  private KafkaAdminClient kafkaAdminClient;
 
-  @BeforeClass
-  public static void setUpClass() {
+  @Before
+  public void setUp() {
     String[] hostAndPort = kafkaCluster.getBrokerList().split(":");
     kafkaConfig = KafkaConfig.builder()
       .kafkaHost(hostAndPort[0])
@@ -197,7 +199,7 @@ public class KafkaConsumerWrapperTest {
       });
   }
 
-//  @Test
+  @Test
   public void shouldInvokeSpecifiedProcessRecordErrorHandlerWhenAsyncRecordHandlerFails(TestContext testContext) {
     Async async = testContext.async();
     SubscriptionDefinition subscriptionDefinition = KafkaTopicNameHelper.createSubscriptionDefinition(KAFKA_ENV, getDefaultNameSpace(), EVENT_TYPE);
