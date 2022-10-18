@@ -1,3 +1,7 @@
+## 2022-10-18 v2.6.1
+* [KAFKAWRAP-25](https://issues.folio.org/browse/KAFKAWRAP-25) Upgrade dependencies fixing vulnerabilities
+* [KAFKAWRAP-26](https://issues.folio.org/browse/KAFKAWRAP-26) Publish jars with source code and javadoc
+
 ## 2022-05-23 v2.6.0
 * [KAFKAWRAP-18](https://issues.folio.org/browse/KAFKAWRAP-18) Add implementation pause/resume methods to support DI flow control
 * [KAFKAWRAP-22](https://issues.folio.org/browse/KAFKAWRAP-22) Upgrade vulns: log4j-core, jackson-databind, netty-codec-http
