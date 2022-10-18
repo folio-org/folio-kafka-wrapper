@@ -15,7 +15,9 @@ import net.mguenther.kafka.junit.SendKeyValues;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 
 import java.util.ArrayList;
@@ -35,11 +37,12 @@ import static org.mockito.Mockito.verify;
 @RunWith(VertxUnitRunner.class)
 public class KafkaConsumerWrapperTest {
 
-  private static final String EVENT_TYPE = "test_topic";
-  private static final String EVENT_TYPE2 = "test_topic2";
   private static final String KAFKA_ENV = "test-env";
   private static final String TENANT_ID = "diku";
   private static final String MODULE_NAME = "test_module";
+
+  @Rule
+  public TestName testName = new TestName();
 
   private Vertx vertx = Vertx.vertx();
   private EmbeddedKafkaCluster kafkaCluster;
@@ -73,7 +76,7 @@ public class KafkaConsumerWrapperTest {
     String expectedLastRecordKey = String.valueOf(recordsAmountToSend);
     System.setProperty(KAFKA_CONSUMER_MAX_POLL_RECORDS_CONFIG, "2");
 
-    SubscriptionDefinition subscriptionDefinition = KafkaTopicNameHelper.createSubscriptionDefinition(KAFKA_ENV, getDefaultNameSpace(), EVENT_TYPE);
+    SubscriptionDefinition subscriptionDefinition = KafkaTopicNameHelper.createSubscriptionDefinition(KAFKA_ENV, getDefaultNameSpace(), eventType());
     KafkaConsumerWrapper<String, String> kafkaConsumerWrapper = KafkaConsumerWrapper.<String, String>builder()
       .context(vertx.getOrCreateContext())
       .vertx(vertx)
@@ -83,7 +86,7 @@ public class KafkaConsumerWrapperTest {
       .subscriptionDefinition(subscriptionDefinition)
       .build();
 
-    String topicName = KafkaTopicNameHelper.formatTopicName(KAFKA_ENV, getDefaultNameSpace(), TENANT_ID, EVENT_TYPE);
+    String topicName = KafkaTopicNameHelper.formatTopicName(KAFKA_ENV, getDefaultNameSpace(), TENANT_ID, eventType());
     List<Promise<String>> promises = new ArrayList<>();
     AtomicInteger recordCounter = new AtomicInteger(0);
 
@@ -114,7 +117,7 @@ public class KafkaConsumerWrapperTest {
   @Test
   public void shouldReturnFailedFutureWhenSpecifiedBusinessHandlerIsNull(TestContext testContext) {
     Async async = testContext.async();
-    SubscriptionDefinition subscriptionDefinition = KafkaTopicNameHelper.createSubscriptionDefinition(KAFKA_ENV, getDefaultNameSpace(), EVENT_TYPE);
+    SubscriptionDefinition subscriptionDefinition = KafkaTopicNameHelper.createSubscriptionDefinition(KAFKA_ENV, getDefaultNameSpace(), eventType());
     KafkaConsumerWrapper<String, String> kafkaConsumerWrapper = KafkaConsumerWrapper.<String, String>builder()
       .context(vertx.getOrCreateContext())
       .vertx(vertx)
@@ -152,7 +155,7 @@ public class KafkaConsumerWrapperTest {
   @Test
   public void shouldReturnFailedFutureWhenSpecifiedLoadLimitLessThenOne(TestContext testContext) {
     Async async = testContext.async();
-    SubscriptionDefinition subscriptionDefinition = KafkaTopicNameHelper.createSubscriptionDefinition(KAFKA_ENV, getDefaultNameSpace(), EVENT_TYPE);
+    SubscriptionDefinition subscriptionDefinition = KafkaTopicNameHelper.createSubscriptionDefinition(KAFKA_ENV, getDefaultNameSpace(), eventType());
     KafkaConsumerWrapper<String, String> kafkaConsumerWrapper = KafkaConsumerWrapper.<String, String>builder()
       .context(vertx.getOrCreateContext())
       .vertx(vertx)
@@ -171,8 +174,8 @@ public class KafkaConsumerWrapperTest {
 
   @Test
   public void shouldReturnSucceededFutureAndUnsubscribeWhenStopIsCalled(TestContext testContext) throws Exception {
-    SubscriptionDefinition subscriptionDefinition = KafkaTopicNameHelper.createSubscriptionDefinition(KAFKA_ENV, getDefaultNameSpace(), EVENT_TYPE2);
-    String groupId = KafkaTopicNameHelper.formatGroupName(EVENT_TYPE2, MODULE_NAME);
+    SubscriptionDefinition subscriptionDefinition = KafkaTopicNameHelper.createSubscriptionDefinition(KAFKA_ENV, getDefaultNameSpace(), eventType());
+    String groupId = KafkaTopicNameHelper.formatGroupName(eventType(), MODULE_NAME);
 
     KafkaConsumerWrapper<String, String> kafkaConsumerWrapper = KafkaConsumerWrapper.<String, String>builder()
       .context(vertx.getOrCreateContext())
@@ -194,8 +197,8 @@ public class KafkaConsumerWrapperTest {
   @Test
   public void shouldInvokeSpecifiedProcessRecordErrorHandlerWhenAsyncRecordHandlerFails(TestContext testContext) {
     Async async = testContext.async();
-    SubscriptionDefinition subscriptionDefinition = KafkaTopicNameHelper.createSubscriptionDefinition(KAFKA_ENV, getDefaultNameSpace(), EVENT_TYPE);
-    String topicName = KafkaTopicNameHelper.formatTopicName(KAFKA_ENV, getDefaultNameSpace(), TENANT_ID, EVENT_TYPE);
+    SubscriptionDefinition subscriptionDefinition = KafkaTopicNameHelper.createSubscriptionDefinition(KAFKA_ENV, getDefaultNameSpace(), eventType());
+    String topicName = KafkaTopicNameHelper.formatTopicName(KAFKA_ENV, getDefaultNameSpace(), TENANT_ID, eventType());
     ProcessRecordErrorHandler<String, String> recordErrorHandler = mock(ProcessRecordErrorHandler.class);
 
     KafkaConsumerWrapper<String, String> kafkaConsumerWrapper = KafkaConsumerWrapper.<String, String>builder()
@@ -217,6 +220,13 @@ public class KafkaConsumerWrapperTest {
 
     async.await();
     verify(recordErrorHandler, after(500)).handle(any(Throwable.class), any(KafkaConsumerRecord.class));
+  }
+
+  /**
+   * To make tests independent from each other use the test method name as eventType
+   */
+  private String eventType() {
+    return testName.getMethodName();
   }
 
   private void sendRecord(String key, String recordPayload, String topicName, TestContext testContext) {
