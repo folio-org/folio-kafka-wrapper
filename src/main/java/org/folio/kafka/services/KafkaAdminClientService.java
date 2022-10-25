@@ -27,6 +27,7 @@ import static org.folio.kafka.KafkaTopicNameHelper.formatTopicName;
 import static org.folio.kafka.services.KafkaEnvironmentProperties.getReplicationFactor;
 
 public class KafkaAdminClientService {
+
   private static final Logger log = getLogger(KafkaAdminClientService.class);
   private static final String KAFKA_TOPICS_FILE = "kafka-topics.json";
   private final Supplier<KafkaAdminClient> clientFactory;
@@ -61,7 +62,6 @@ public class KafkaAdminClientService {
   }
 
   private Future<Void> createKafkaTopics(int attempt, List<NewTopic> topics, KafkaAdminClient kafkaAdminClient) {
-
     return kafkaAdminClient.listTopics()
       .compose(existingTopics -> {
         final List<NewTopic> newTopics = new ArrayList<>(topics);
@@ -92,12 +92,6 @@ public class KafkaAdminClientService {
           .onFailure(e -> log.error("Failed to close kafka admin client", e)));
   }
 
-  private Future<Void> sleep() {
-    Context context = Vertx.currentContext();
-    Vertx vertx = context == null ? Vertx.vertx() : context.owner();
-    return Future.future(promise -> vertx.setTimer(100, x -> promise.tryComplete()));
-  }
-
   private Stream<NewTopic> readTopics() {
     final JsonObject topics = new JsonObject(readKafkaTopicsFile());
 
@@ -115,5 +109,14 @@ public class KafkaAdminClientService {
     } catch (Exception e) {
       throw new KafkaTopicsFileReadException(KAFKA_TOPICS_FILE);
     }
+  }
+
+  /**
+   * Sleep for 100 milliseconds.
+   */
+  private Future<Void> sleep() {
+    Context context = Vertx.currentContext();
+    Vertx vertx = context == null ? Vertx.vertx() : context.owner();
+    return Future.future(promise -> vertx.setTimer(100, x -> promise.tryComplete()));
   }
 }
