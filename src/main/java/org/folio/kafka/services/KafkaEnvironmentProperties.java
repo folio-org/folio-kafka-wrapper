@@ -9,15 +9,19 @@ public final class KafkaEnvironmentProperties {
     throw new UnsupportedOperationException("Cannot instantiate utility class.");
   }
 
-  public static String getPort() {
+  public static String port() {
     return getenv().getOrDefault("KAFKA_PORT", "9092");
   }
 
-  public static String getHost() {
+  public static String host() {
     return getenv().getOrDefault("KAFKA_HOST", "localhost");
   }
 
-  public static short getReplicationFactor() {
+  public static String environment() {
+    return getenv().getOrDefault("ENV", "folio");
+  }
+
+  public static short replicationFactor() {
     return parseShort(getenv().getOrDefault("REPLICATION_FACTOR", "1"));
   }
 }

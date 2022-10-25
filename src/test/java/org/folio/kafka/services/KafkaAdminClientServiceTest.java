@@ -40,6 +40,7 @@ public class KafkaAdminClientServiceTest {
     "folio.kafka-wrapper.foo-tenant.topic3"
   );
 
+  private final String STUB_TENANT = "foo-tenant";
   private KafkaAdminClient mockClient;
   private Vertx vertx;
 
@@ -141,7 +142,7 @@ public class KafkaAdminClientServiceTest {
       mocked.when(() -> KafkaAdminClient.create(eq(vertx), anyMap())).thenReturn(client);
 
       return new KafkaAdminClientService(vertx)
-        .createKafkaTopics("folio", "kafka-wrapper", "foo-tenant");
+        .createKafkaTopics(TestKafkaTopics.values(), STUB_TENANT);
     }
   }
 
@@ -150,7 +151,7 @@ public class KafkaAdminClientServiceTest {
       mocked.when(() -> KafkaAdminClient.create(eq(vertx), anyMap())).thenReturn(client);
 
       return new KafkaAdminClientService(vertx)
-        .deleteKafkaTopics("folio", "kafka-wrapper", "foo-tenant");
+        .deleteKafkaTopics(TestKafkaTopics.values(), STUB_TENANT);
     }
   }
 }

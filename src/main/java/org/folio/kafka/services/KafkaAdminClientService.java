@@ -3,19 +3,14 @@ package org.folio.kafka.services;
 import io.vertx.core.Context;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
-import io.vertx.core.json.JsonArray;
-import io.vertx.core.json.JsonObject;
 import io.vertx.kafka.admin.KafkaAdminClient;
 import io.vertx.kafka.admin.NewTopic;
 import org.apache.logging.log4j.Logger;
 import org.folio.kafka.KafkaConfig;
-import org.folio.kafka.exception.KafkaTopicsFileReadException;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -23,26 +18,24 @@ import java.util.stream.Stream;
 
 import static io.vertx.kafka.admin.KafkaAdminClient.create;
 import static org.apache.logging.log4j.LogManager.getLogger;
-import static org.folio.kafka.KafkaTopicNameHelper.formatTopicName;
-import static org.folio.kafka.services.KafkaEnvironmentProperties.getReplicationFactor;
+import static org.folio.kafka.services.KafkaEnvironmentProperties.environment;
+import static org.folio.kafka.services.KafkaEnvironmentProperties.replicationFactor;
 
 public class KafkaAdminClientService {
 
   private static final Logger log = getLogger(KafkaAdminClientService.class);
-  private static final String KAFKA_TOPICS_FILE = "kafka-topics.json";
   private final Supplier<KafkaAdminClient> clientFactory;
 
   public KafkaAdminClientService(Vertx vertx) {
     this.clientFactory = () -> create(vertx, KafkaConfig.builder()
-      .kafkaHost(KafkaEnvironmentProperties.getHost())
-      .kafkaPort(KafkaEnvironmentProperties.getPort())
+      .kafkaHost(KafkaEnvironmentProperties.host())
+      .kafkaPort(KafkaEnvironmentProperties.port())
       .build().getProducerProps());
   }
 
-  public Future<Void> createKafkaTopics(String environmentName, String moduleName, String tenantId) {
-    final List<NewTopic> topics = readTopics()
-      .map(topic -> topic.setName(formatTopicName(environmentName, moduleName, tenantId, topic.getName())))
-      .map(topic -> topic.setReplicationFactor(getReplicationFactor()))
+  public Future<Void> createKafkaTopics(KafkaTopic[] enumTopics, String tenantId) {
+    final List<NewTopic> topics = readTopics(enumTopics, tenantId)
+      .map(topic -> topic.setReplicationFactor(replicationFactor()))
       .collect(Collectors.toList());
     final KafkaAdminClient kafkaAdminClient = clientFactory.get();
     return createKafkaTopics(1, topics, kafkaAdminClient)
@@ -51,9 +44,8 @@ public class KafkaAdminClientService {
       .onFailure(cause -> log.error("Unable to create topics", cause));
   }
 
-  public Future<Void> deleteKafkaTopics(String environmentName, String moduleName, String tenantId) {
-    List<String> topicsToDelete = readTopics()
-      .map(topic -> topic.setName(formatTopicName(environmentName, moduleName, tenantId, topic.getName())))
+  public Future<Void> deleteKafkaTopics(KafkaTopic[] enumTopics, String tenantId) {
+    List<String> topicsToDelete = readTopics(enumTopics, tenantId)
       .map(NewTopic::getName)
       .collect(Collectors.toList());
     return withKafkaAdminClient(kafkaAdminClient -> kafkaAdminClient.deleteTopics(topicsToDelete))
@@ -92,23 +84,12 @@ public class KafkaAdminClientService {
           .onFailure(e -> log.error("Failed to close kafka admin client", e)));
   }
 
-  private Stream<NewTopic> readTopics() {
-    final JsonObject topics = new JsonObject(readKafkaTopicsFile());
-
-    return topics.getJsonArray("topics", new JsonArray()).stream()
-      .map(JsonObject.class::cast)
-      .map(NewTopic::new);
-  }
-
-  private String readKafkaTopicsFile() {
-    try {
-      var loader = Thread.currentThread().getContextClassLoader();
-      var resourceFile = loader.getResource(KAFKA_TOPICS_FILE);
-      var filePath = Path.of(Objects.requireNonNull(resourceFile).toURI());
-      return Files.readString(filePath);
-    } catch (Exception e) {
-      throw new KafkaTopicsFileReadException(KAFKA_TOPICS_FILE);
-    }
+  private Stream<NewTopic> readTopics(KafkaTopic[] enumTopics, String tenant) {
+    return Arrays.stream(enumTopics)
+      .map(topic -> new NewTopic(
+        topic.fullTopicName(environment(), tenant),
+        topic.numPartitions(),
+        topic.replicationFactor()));
   }
 
   /**
