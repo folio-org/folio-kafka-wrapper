@@ -35,9 +35,9 @@ import static org.mockito.Mockito.when;
 public class KafkaAdminClientServiceTest {
 
   private final List<String> allExpectedTopics = List.of(
-    "folio.kafka-wrapper.foo-tenant.topic1",
-    "folio.kafka-wrapper.foo-tenant.topic2",
-    "folio.kafka-wrapper.foo-tenant.topic3"
+    "folio.foo-tenant.kafka-wrapper.topic1",
+    "folio.foo-tenant.kafka-wrapper.topic2",
+    "folio.foo-tenant.kafka-wrapper.topic3"
   );
 
   private final String STUB_TENANT = "foo-tenant";
