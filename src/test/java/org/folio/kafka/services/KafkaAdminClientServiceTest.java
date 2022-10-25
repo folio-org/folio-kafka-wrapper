@@ -142,7 +142,7 @@ public class KafkaAdminClientServiceTest {
       mocked.when(() -> KafkaAdminClient.create(eq(vertx), anyMap())).thenReturn(client);
 
       return new KafkaAdminClientService(vertx)
-        .createKafkaTopics(TestKafkaTopics.values(), STUB_TENANT);
+        .createKafkaTopics(TestKafkaTopic.values(), STUB_TENANT);
     }
   }
 
@@ -151,7 +151,7 @@ public class KafkaAdminClientServiceTest {
       mocked.when(() -> KafkaAdminClient.create(eq(vertx), anyMap())).thenReturn(client);
 
       return new KafkaAdminClientService(vertx)
-        .deleteKafkaTopics(TestKafkaTopics.values(), STUB_TENANT);
+        .deleteKafkaTopics(TestKafkaTopic.values(), STUB_TENANT);
     }
   }
 }

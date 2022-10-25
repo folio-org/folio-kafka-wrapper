@@ -5,9 +5,7 @@ import static java.lang.System.getenv;
 
 public final class KafkaEnvironmentProperties {
 
-  private KafkaEnvironmentProperties() {
-    throw new UnsupportedOperationException("Cannot instantiate utility class.");
-  }
+  private KafkaEnvironmentProperties() { }
 
   public static String port() {
     return getenv().getOrDefault("KAFKA_PORT", "9092");

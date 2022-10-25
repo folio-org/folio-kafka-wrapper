@@ -1,6 +1,5 @@
 package org.folio.kafka.services;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vertx.kafka.client.producer.KafkaProducerRecord;
 import org.folio.kafka.exception.ProducerCreationException;
@@ -10,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static io.vertx.kafka.client.producer.KafkaProducerRecord.create;
+import static java.util.Objects.isNull;
 import static org.folio.okapi.common.XOkapiHeaders.TENANT;
 import static org.folio.okapi.common.XOkapiHeaders.URL;
 
@@ -52,12 +52,13 @@ public final class KafkaProducerRecordBuilder {
 
   public KafkaProducerRecord<String, String> build() {
     try {
+      if (isNull(value)) throw new NullPointerException();
       var valueAsString = MAPPER.writeValueAsString(this.value);
       var kafkaProducerRecord = create(topic, key, valueAsString);
       headers.forEach(kafkaProducerRecord::addHeader);
       return kafkaProducerRecord;
-    } catch (JsonProcessingException ex) {
-      throw new ProducerCreationException();
+    } catch (Exception ex) {
+      throw new ProducerCreationException(ex.getMessage());
     }
   }
 }

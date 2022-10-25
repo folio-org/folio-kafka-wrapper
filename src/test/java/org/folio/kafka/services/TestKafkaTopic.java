@@ -1,6 +1,6 @@
 package org.folio.kafka.services;
 
-public enum TestKafkaTopics implements KafkaTopic {
+public enum TestKafkaTopic implements KafkaTopic {
   TOPIC_ONE("topic1", 10),
   TOPIC_TWO("topic2", 20),
   TOPIC_THREE("topic3", 30);
@@ -8,7 +8,7 @@ public enum TestKafkaTopics implements KafkaTopic {
   private final String topic;
   private final int partitions;
 
-  TestKafkaTopics(String topic, int partitions) {
+  TestKafkaTopic(String topic, int partitions) {
    this.topic = topic;
    this.partitions = partitions;
   }
