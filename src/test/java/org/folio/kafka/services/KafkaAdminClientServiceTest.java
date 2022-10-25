@@ -18,9 +18,9 @@ import java.util.stream.Collectors;
 
 import static io.vertx.core.Future.failedFuture;
 import static io.vertx.core.Future.succeededFuture;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.junit.MatcherAssert.assertThat;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -34,7 +34,7 @@ import static org.mockito.Mockito.when;
 @RunWith(VertxUnitRunner.class)
 public class KafkaAdminClientServiceTest {
 
-  private final Set<String> allExpectedTopics = Set.of(
+  private final List<String> allExpectedTopics = List.of(
     "folio.kafka-wrapper.foo-tenant.topic1",
     "folio.kafka-wrapper.foo-tenant.topic2",
     "folio.kafka-wrapper.foo-tenant.topic3"
@@ -109,7 +109,7 @@ public class KafkaAdminClientServiceTest {
         verify(mockClient, times(1)).close();
 
         // Only these items are expected, so implicitly checks size of list
-        assertThat(getTopicNames(createTopicsCaptor), containsInAnyOrder(allExpectedTopics.toArray()));
+        assertTrue(allExpectedTopics.containsAll(getTopicNames(createTopicsCaptor)));
       }));
   }
 
@@ -126,7 +126,7 @@ public class KafkaAdminClientServiceTest {
         verify(mockClient, times(1)).deleteTopics(deleteTopicsCaptor.capture());
         verify(mockClient, times(1)).close();
 
-        assertThat(deleteTopicsCaptor.getAllValues().get(0), containsInAnyOrder(allExpectedTopics.toArray()));
+        assertTrue(allExpectedTopics.containsAll(deleteTopicsCaptor.getAllValues().get(0)));
       }));
   }
 
