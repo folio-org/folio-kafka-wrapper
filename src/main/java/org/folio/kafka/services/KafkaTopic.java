@@ -15,17 +15,24 @@ public interface KafkaTopic {
   String topicName();
 
   /**
-   * Return num partitions
+   * Returns num partitions
+   * Default - 50
    */
-  int numPartitions();
+  default int numPartitions() {
+    return 50;
+  }
 
   /**
-   * Return replication factor
+   * Returns replication factor.
+   * Default - 0
    */
-  short replicationFactor();
+  default short replicationFactor(){
+    return 0;
+  }
 
   /**
-   * Return full topic name
+   * Returns full topic name.
+   * Order: {environment}.{tenantId}.{modulePrefix}.{topicName}
    */
   default String fullTopicName(String environment, String tenant) {
     return formatTopicName(environment, tenant, moduleName(), topicName());

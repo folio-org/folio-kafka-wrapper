@@ -1,9 +1,9 @@
 package org.folio.kafka.services;
 
 public enum TestKafkaTopics implements KafkaTopic {
-  TOPIC_ONE("topic1", 50),
-  TOPIC_TWO("topic2", 50),
-  TOPIC_THREE("topic3", 50);
+  TOPIC_ONE("topic1", 10),
+  TOPIC_TWO("topic2", 20),
+  TOPIC_THREE("topic3", 30);
 
   private final String topic;
   private final int partitions;
@@ -26,10 +26,5 @@ public enum TestKafkaTopics implements KafkaTopic {
   @Override
   public int numPartitions() {
     return partitions;
-  }
-
-  @Override
-  public short replicationFactor() {
-    return 0;
   }
 }
