@@ -38,7 +38,7 @@ public class KafkaAdminClientService {
       .build().getProducerProps());
   }
 
-  public Future<Void> createKafkaTopics(String moduleName, String tenantId, String environmentName) {
+  public Future<Void> createKafkaTopics(String environmentName, String moduleName, String tenantId) {
     final List<NewTopic> topics = readTopics()
       .map(topic -> topic.setName(formatTopicName(environmentName, moduleName, tenantId, topic.getName())))
       .map(topic -> topic.setReplicationFactor(getReplicationFactor()))
@@ -50,7 +50,7 @@ public class KafkaAdminClientService {
       .onFailure(cause -> log.error("Unable to create topics", cause));
   }
 
-  public Future<Void> deleteKafkaTopics(String moduleName, String tenantId, String environmentName) {
+  public Future<Void> deleteKafkaTopics(String environmentName, String moduleName, String tenantId) {
     List<String> topicsToDelete = readTopics()
       .map(topic -> topic.setName(formatTopicName(environmentName, moduleName, tenantId, topic.getName())))
       .map(NewTopic::getName)

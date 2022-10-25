@@ -1,0 +1,16 @@
+{
+  "topics": [
+    {
+      "name": "topic1",
+      "numPartitions": 50
+    },
+    {
+      "name": "topic2",
+      "numPartitions": 50
+    },
+    {
+      "name": "topic3",
+      "numPartitions": 50
+    }
+  ]
+}
