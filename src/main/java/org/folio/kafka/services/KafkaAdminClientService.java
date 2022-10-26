@@ -19,7 +19,6 @@ import java.util.stream.Stream;
 import static io.vertx.kafka.admin.KafkaAdminClient.create;
 import static org.apache.logging.log4j.LogManager.getLogger;
 import static org.folio.kafka.services.KafkaEnvironmentProperties.environment;
-import static org.folio.kafka.services.KafkaEnvironmentProperties.replicationFactor;
 
 public class KafkaAdminClientService {
 
@@ -88,7 +87,7 @@ public class KafkaAdminClientService {
       .map(topic -> new NewTopic(
         topic.fullTopicName(environment(), tenant),
         topic.numPartitions(),
-        replicationFactor()));
+        topic.replicationFactor()));
   }
 
   /**
