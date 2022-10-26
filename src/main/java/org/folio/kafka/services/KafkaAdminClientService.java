@@ -35,7 +35,6 @@ public class KafkaAdminClientService {
 
   public Future<Void> createKafkaTopics(KafkaTopic[] enumTopics, String tenantId) {
     final List<NewTopic> topics = readTopics(enumTopics, tenantId)
-      .map(topic -> topic.setReplicationFactor(replicationFactor()))
       .collect(Collectors.toList());
     final KafkaAdminClient kafkaAdminClient = clientFactory.get();
     return createKafkaTopics(1, topics, kafkaAdminClient)
@@ -89,7 +88,7 @@ public class KafkaAdminClientService {
       .map(topic -> new NewTopic(
         topic.fullTopicName(environment(), tenant),
         topic.numPartitions(),
-        topic.replicationFactor()));
+        replicationFactor()));
   }
 
   /**

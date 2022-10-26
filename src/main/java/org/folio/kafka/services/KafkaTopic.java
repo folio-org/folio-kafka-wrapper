@@ -23,14 +23,6 @@ public interface KafkaTopic {
   }
 
   /**
-   * Returns replication factor.
-   * Default - 0
-   */
-  default short replicationFactor(){
-    return 0;
-  }
-
-  /**
    * Returns full topic name.
    * Order: {environment}.{tenantId}.{modulePrefix}.{topicName}
    */
