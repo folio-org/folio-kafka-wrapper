@@ -1,6 +1,7 @@
 package org.folio.kafka.services;
 
 import static org.folio.kafka.KafkaTopicNameHelper.formatTopicName;
+import static org.folio.kafka.services.KafkaEnvironmentProperties.environment;
 
 public interface KafkaTopic {
 
@@ -34,7 +35,7 @@ public interface KafkaTopic {
    * Returns full topic name.
    * Order: {environment}.{tenantId}.{modulePrefix}.{topicName}
    */
-  default String fullTopicName(String environment, String tenant) {
-    return formatTopicName(environment, tenant, moduleName(), topicName());
+  default String fullTopicName(String tenant) {
+    return formatTopicName(environment(), tenant, moduleName(), topicName());
   }
 }

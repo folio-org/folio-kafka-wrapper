@@ -18,7 +18,6 @@ import java.util.stream.Stream;
 
 import static io.vertx.kafka.admin.KafkaAdminClient.create;
 import static org.apache.logging.log4j.LogManager.getLogger;
-import static org.folio.kafka.services.KafkaEnvironmentProperties.environment;
 
 public class KafkaAdminClientService {
 
@@ -85,7 +84,7 @@ public class KafkaAdminClientService {
   private Stream<NewTopic> readTopics(KafkaTopic[] enumTopics, String tenant) {
     return Arrays.stream(enumTopics)
       .map(topic -> new NewTopic(
-        topic.fullTopicName(environment(), tenant),
+        topic.fullTopicName(tenant),
         topic.numPartitions(),
         topic.replicationFactor()));
   }
