@@ -13,36 +13,36 @@ import static java.util.Objects.isNull;
 import static org.folio.okapi.common.XOkapiHeaders.TENANT;
 import static org.folio.okapi.common.XOkapiHeaders.URL;
 
-public final class KafkaProducerRecordBuilder {
+public final class KafkaProducerRecordBuilder<K, V> {
   private static final Set<String> FORWARDER_HEADERS = Set.of(URL.toLowerCase(), TENANT.toLowerCase());
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
-  private Object value;
-  private String key;
+  private V value;
+  private K key;
   private String topic;
   private final Map<String, String> headers = new HashMap<>();
 
-  public KafkaProducerRecordBuilder value(Object value) {
+  public KafkaProducerRecordBuilder<K, V> value(V value) {
     this.value = value;
     return this;
   }
 
-  public KafkaProducerRecordBuilder key(String key) {
+  public KafkaProducerRecordBuilder<K, V> key(K key) {
     this.key = key;
     return this;
   }
 
-  public KafkaProducerRecordBuilder topic(String topic) {
+  public KafkaProducerRecordBuilder<K, V> topic(String topic) {
     this.topic = topic;
     return this;
   }
 
-  public KafkaProducerRecordBuilder header(String key, String value) {
+  public KafkaProducerRecordBuilder<K, V> header(String key, String value) {
     this.headers.put(key, value);
     return this;
   }
 
-  public KafkaProducerRecordBuilder propagateOkapiHeaders(Map<String, String> okapiHeaders) {
+  public KafkaProducerRecordBuilder<K, V> propagateOkapiHeaders(Map<String, String> okapiHeaders) {
     okapiHeaders.entrySet().stream()
       .filter(entry -> FORWARDER_HEADERS.contains(entry.getKey().toLowerCase()))
       .forEach(entry -> header(entry.getKey(), entry.getValue()));
@@ -50,12 +50,14 @@ public final class KafkaProducerRecordBuilder {
     return this;
   }
 
-  public KafkaProducerRecord<String, String> build() {
+  public KafkaProducerRecord<K, String> build() {
     try {
       if (isNull(value)) throw new NullPointerException();
       var valueAsString = MAPPER.writeValueAsString(this.value);
+
       var kafkaProducerRecord = create(topic, key, valueAsString);
       headers.forEach(kafkaProducerRecord::addHeader);
+
       return kafkaProducerRecord;
     } catch (Exception ex) {
       throw new ProducerCreationException(ex.getMessage());

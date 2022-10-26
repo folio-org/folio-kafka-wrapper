@@ -31,9 +31,10 @@ public class SimpleKafkaProducerManagerTest {
   public void shouldBuildKafkaProducerRecord() {
     var expectedKey = randomUUID().toString();
     var expectedHeader = "okapi-header";
-    var producerRecord = new KafkaProducerRecordBuilder()
+    var producerRecord = new KafkaProducerRecordBuilder<String, String>()
       .topic(TOPIC_ONE.topicName())
-      .key(expectedKey).value(TOPIC_ONE)
+      .value(TOPIC_ONE.topicName())
+      .key(expectedKey)
       .header(expectedHeader, expectedKey)
       .build();
 
@@ -50,9 +51,9 @@ public class SimpleKafkaProducerManagerTest {
       TENANT.toLowerCase(), "2",
       "not-okapi", "3");
 
-    var producerRecord = new KafkaProducerRecordBuilder()
+    var producerRecord = new KafkaProducerRecordBuilder<String, String>()
       .propagateOkapiHeaders(okapiHeaders)
-      .value(TOPIC_ONE)
+      .value(TOPIC_ONE.topicName())
       .build();
 
     assertEquals(2, producerRecord.headers().size());
@@ -60,7 +61,7 @@ public class SimpleKafkaProducerManagerTest {
 
   @Test(expected = ProducerCreationException.class)
   public void shouldFailToBuildNullValue() {
-    new KafkaProducerRecordBuilder()
+    new KafkaProducerRecordBuilder<String, String>()
       .value(null)
       .build();
   }
