@@ -34,9 +34,8 @@ public class KafkaAdminClientService {
   public Future<Void> createKafkaTopics(KafkaTopic[] enumTopics, String tenantId) {
     final List<NewTopic> topics = readTopics(enumTopics, tenantId)
       .collect(Collectors.toList());
-    final KafkaAdminClient kafkaAdminClient = clientFactory.get();
-    return createKafkaTopics(1, topics, kafkaAdminClient)
-      .eventually(x -> kafkaAdminClient.close())
+
+    return withKafkaAdminClient(adminClient -> createKafkaTopics(1, topics, adminClient))
       .onSuccess(result -> log.info("Topics created successfully"))
       .onFailure(cause -> log.error("Unable to create topics", cause));
   }
@@ -45,6 +44,7 @@ public class KafkaAdminClientService {
     List<String> topicsToDelete = readTopics(enumTopics, tenantId)
       .map(NewTopic::getName)
       .collect(Collectors.toList());
+
     return withKafkaAdminClient(kafkaAdminClient -> kafkaAdminClient.deleteTopics(topicsToDelete))
       .onSuccess(x -> log.info("Topics deleted successfully"))
       .onFailure(e -> log.error("Unable to delete topics", e));
