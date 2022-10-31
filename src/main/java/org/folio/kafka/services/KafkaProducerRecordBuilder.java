@@ -1,6 +1,7 @@
 package org.folio.kafka.services;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import io.vertx.kafka.client.producer.KafkaProducerRecord;
 import org.folio.kafka.exception.ProducerCreationException;
 
@@ -21,6 +22,10 @@ public final class KafkaProducerRecordBuilder<K, V> {
   private K key;
   private String topic;
   private final Map<String, String> headers = new HashMap<>();
+
+  static {
+    MAPPER.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
+  }
 
   public KafkaProducerRecordBuilder<K, V> value(V value) {
     this.value = value;
