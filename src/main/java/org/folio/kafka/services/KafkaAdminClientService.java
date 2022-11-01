@@ -36,8 +36,8 @@ public class KafkaAdminClientService {
       .collect(Collectors.toList());
 
     return withKafkaAdminClient(adminClient -> createKafkaTopics(1, topics, adminClient))
-      .onSuccess(result -> log.info("Topics created successfully"))
-      .onFailure(cause -> log.error("Unable to create topics", cause));
+      .onSuccess(result -> log.info("createKafkaTopics:: Topics created successfully"))
+      .onFailure(cause -> log.error("createKafkaTopics:: Unable to create topics", cause));
   }
 
   public Future<Void> deleteKafkaTopics(KafkaTopic[] enumTopics, String tenantId) {
@@ -46,8 +46,8 @@ public class KafkaAdminClientService {
       .collect(Collectors.toList());
 
     return withKafkaAdminClient(kafkaAdminClient -> kafkaAdminClient.deleteTopics(topicsToDelete))
-      .onSuccess(x -> log.info("Topics deleted successfully"))
-      .onFailure(e -> log.error("Unable to delete topics", e));
+      .onSuccess(x -> log.info("deleteKafkaTopics:: Topics deleted successfully"))
+      .onFailure(e -> log.error("deleteKafkaTopics:: Unable to delete topics", e));
   }
 
   private Future<Void> createKafkaTopics(int attempt, List<NewTopic> topics, KafkaAdminClient kafkaAdminClient) {
@@ -65,10 +65,10 @@ public class KafkaAdminClientService {
           return Future.failedFuture(e);
         }
         if (attempt >= 30) {
-          log.error("attempt {} failed: {}", attempt, e.getMessage(), e);
+          log.error("createKafkaTopics:: attempt {} failed: {}", attempt, e.getMessage(), e);
           return Future.failedFuture(e);
         }
-        log.info("Create topic attempt {} failed, sleeping and trying next attempt.", attempt);
+        log.info("createKafkaTopics:: Create topic attempt {} failed, sleeping and trying next attempt.", attempt);
         return sleep().compose(x -> createKafkaTopics(attempt + 1, topics, kafkaAdminClient));
       });
   }
@@ -78,7 +78,7 @@ public class KafkaAdminClientService {
     return function.apply(kafkaAdminClient)
       .eventually(x ->
         kafkaAdminClient.close()
-          .onFailure(e -> log.error("Failed to close kafka admin client", e)));
+          .onFailure(e -> log.error("withKafkaAdminClient:: Failed to close kafka admin client", e)));
   }
 
   private Stream<NewTopic> readTopics(KafkaTopic[] enumTopics, String tenant) {
