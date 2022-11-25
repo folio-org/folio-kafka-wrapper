@@ -210,10 +210,10 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
 
   private Handler<AsyncResult<K>> businessHandlerCompletionHandler(KafkaConsumerRecord<K, V> record) {
     LOGGER.debug("businessHandlerCompletionHandler:: Starting business completion handler, globalLoadSensor: {}", globalLoadSensor);
-
     return har -> {
       try {
         long offset = record.offset() + 1;
+        LOGGER.debug("businessHandlerCompletionHandler:offset = " + offset);
         Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>(2);
         TopicPartition topicPartition = new TopicPartition(record.topic(), record.partition());
         OffsetAndMetadata offsetAndMetadata = new OffsetAndMetadata(offset, null);
@@ -226,6 +226,9 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
             LOGGER.error("businessHandlerCompletionHandler:: Consumer - id: {} subscriptionPattern: {} Error while commit offset: {}", id, subscriptionDefinition, offset, ar.cause());
           }
         });
+
+        LOGGER.error("har.cause = " + har.cause());
+        LOGGER.error("har.failed = " + har.failed());
 
         if (har.failed()) {
           if (har.cause() instanceof DuplicateEventException) {
