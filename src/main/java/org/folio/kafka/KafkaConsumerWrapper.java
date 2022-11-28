@@ -227,9 +227,6 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
           }
         });
 
-        LOGGER.error("har.cause: ", har.cause());
-        LOGGER.error("har.failed: ", har.failed());
-
         if (har.failed()) {
           if (har.cause() instanceof DuplicateEventException) {
             LOGGER.info("businessHandlerCompletionHandler:: Duplicate event for a record - id: {} subscriptionPattern: {} offset: {} has been skipped, logging more info about it in error handler", id, subscriptionDefinition, offset);
