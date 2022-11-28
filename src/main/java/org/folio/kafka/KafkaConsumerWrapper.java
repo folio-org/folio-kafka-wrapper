@@ -210,10 +210,10 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
 
   private Handler<AsyncResult<K>> businessHandlerCompletionHandler(KafkaConsumerRecord<K, V> record) {
     LOGGER.debug("businessHandlerCompletionHandler:: Starting business completion handler, globalLoadSensor: {}", globalLoadSensor);
-
     return har -> {
       try {
         long offset = record.offset() + 1;
+        LOGGER.debug("businessHandlerCompletionHandler:offset = ", offset);
         Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>(2);
         TopicPartition topicPartition = new TopicPartition(record.topic(), record.partition());
         OffsetAndMetadata offsetAndMetadata = new OffsetAndMetadata(offset, null);

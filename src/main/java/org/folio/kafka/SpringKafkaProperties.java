@@ -14,6 +14,18 @@ public final class SpringKafkaProperties {
 
   public static final String KAFKA_PRODUCER_COMPRESSION_TYPE = "spring.kafka.producer.compression-type";
 
+  public static final String KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS_CONFIG = "spring.kafka.producer.delivery.timeout.ms";
+
+  public static final String KAFKA_PRODUCER_REQUEST_TIMEOUT_MS_CONFIG = "spring.kafka.producer.request.timeout.ms";
+
+  public static final String KAFKA_PRODUCER_LINGER_MS_CONFIG = "spring.kafka.producer.linger.ms";
+
+  public static final String KAFKA_PRODUCER_RETRY_BACKOFF_MS_CONFIG = "spring.kafka.producer.retry.backoff.ms";
+
+  public static final String KAFKA_PRODUCER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION = "spring.kafka.producer.max.in.flight.requests.per.connection";
+
+  public static final String KAFKA_PRODUCER_BATCH_SIZE_CONFIG = "spring.kafka.producer.batch.size";
+
   public static final String KAFKA_SSL_PROTOCOL = "spring.kafka.ssl.protocol";
 
   public static final String KAFKA_SSL_KEY_PASSWORD = "spring.kafka.ssl.key-password";

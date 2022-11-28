@@ -40,6 +40,26 @@ public class KafkaConfig {
   public static final String KAFKA_SSL_PROTOCOL_CONFIG = "ssl.protocol";
   public static final String KAFKA_SSL_PROTOCOL_DEFAULT = "TLSv1.2";
 
+  //TODO:
+  // https://www.conduktor.io/kafka/kafka-producer-retries
+  public static final String KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS_CONFIG = "kafka.producer.delivery.timeout.ms";
+  public static final String KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS_CONFIG_DEFAULT = "120000";
+
+  public static final String KAFKA_PRODUCER_REQUEST_TIMEOUT_MS_CONFIG = "kafka.producer.request.timeout.ms";
+  public static final String KAFKA_PRODUCER_REQUEST_TIMEOUT_MS_CONFIG_DEFAULT = "30000";
+
+  public static final String KAFKA_PRODUCER_LINGER_MS_CONFIG = "kafka.producer.linger.ms";
+  public static final String KAFKA_PRODUCER_LINGER_MS_CONFIG_DEFAULT = "0";
+
+  public static final String KAFKA_PRODUCER_RETRY_BACKOFF_MS_CONFIG = "kafka.producer.retry.backoff.ms";
+  public static final String KAFKA_PRODUCER_RETRY_BACKOFF_MS_CONFIG_DEFAULT = "100";
+
+  public static final String KAFKA_PRODUCER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION = "kafka.producer.max.in.flight.requests.per.connection";
+  public static final String KAFKA_PRODUCER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION_DEFAULT = "5";
+
+  public static final String KAFKA_PRODUCER_BATCH_SIZE_CONFIG = "kafka.producer.batch.size";
+  public static final Integer KAFKA_PRODUCER_BATCH_SIZE_CONFIG_DEFAULT = 16*1024;
+
   public static final String KAFKA_SSL_KEY_PASSWORD_CONFIG = "ssl.key.password";
 
   public static final String KAFKA_SSL_TRUSTSTORE_LOCATION_CONFIG = "ssl.truststore.location";
@@ -73,6 +93,21 @@ public class KafkaConfig {
     producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
     producerProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, SimpleConfigurationReader.getValue(
       List.of(KAFKA_PRODUCER_COMPRESSION_TYPE_CONFIG, SpringKafkaProperties.KAFKA_PRODUCER_COMPRESSION_TYPE), KAFKA_PRODUCER_COMPRESSION_TYPE_CONFIG_DEFAULT));
+
+
+    producerProps.put(ProducerConfig.LINGER_MS_CONFIG, SimpleConfigurationReader.getValue(
+      List.of(KAFKA_PRODUCER_LINGER_MS_CONFIG, SpringKafkaProperties.KAFKA_PRODUCER_LINGER_MS_CONFIG), KAFKA_PRODUCER_LINGER_MS_CONFIG_DEFAULT));
+    producerProps.put(ProducerConfig.BATCH_SIZE_CONFIG, SimpleConfigurationReader.getValue(
+      List.of(KAFKA_PRODUCER_BATCH_SIZE_CONFIG, SpringKafkaProperties.KAFKA_PRODUCER_BATCH_SIZE_CONFIG), Integer.toString(KAFKA_PRODUCER_BATCH_SIZE_CONFIG_DEFAULT)));
+    producerProps.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, SimpleConfigurationReader.getValue(
+      List.of(KAFKA_PRODUCER_REQUEST_TIMEOUT_MS_CONFIG, SpringKafkaProperties.KAFKA_PRODUCER_REQUEST_TIMEOUT_MS_CONFIG), KAFKA_PRODUCER_REQUEST_TIMEOUT_MS_CONFIG_DEFAULT));
+    producerProps.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, SimpleConfigurationReader.getValue(
+      List.of(KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS_CONFIG, SpringKafkaProperties.KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS_CONFIG), KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS_CONFIG_DEFAULT));
+    producerProps.put(ProducerConfig.RETRY_BACKOFF_MS_CONFIG, SimpleConfigurationReader.getValue(
+      List.of(KAFKA_PRODUCER_RETRY_BACKOFF_MS_CONFIG, SpringKafkaProperties.KAFKA_PRODUCER_RETRY_BACKOFF_MS_CONFIG), KAFKA_PRODUCER_RETRY_BACKOFF_MS_CONFIG_DEFAULT));
+    producerProps.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, SimpleConfigurationReader.getValue(
+      List.of(KAFKA_PRODUCER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, SpringKafkaProperties.KAFKA_PRODUCER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION), KAFKA_PRODUCER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION_DEFAULT));
+
 
     if (getMaxRequestSize() > 0) {
       producerProps.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, String.valueOf(getMaxRequestSize()));
