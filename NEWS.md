@@ -1,3 +1,6 @@
+## 2022-11-30 v2.6.2
+* [KAFKAWRAP-32](https://issues.folio.org/browse/KAFKAWRAP-32) Add Kafka config parameters
+
 ## 2022-10-18 v2.6.1
 * [KAFKAWRAP-25](https://issues.folio.org/browse/KAFKAWRAP-25) Upgrade dependencies fixing vulnerabilities
 * [KAFKAWRAP-26](https://issues.folio.org/browse/KAFKAWRAP-26) Publish jars with source code and javadoc
