@@ -40,8 +40,6 @@ public class KafkaConfig {
   public static final String KAFKA_SSL_PROTOCOL_CONFIG = "ssl.protocol";
   public static final String KAFKA_SSL_PROTOCOL_DEFAULT = "TLSv1.2";
 
-  //TODO:
-  // https://www.conduktor.io/kafka/kafka-producer-retries
   public static final String KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS_CONFIG = "kafka.producer.delivery.timeout.ms";
   public static final String KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS_CONFIG_DEFAULT = "120000";
 
