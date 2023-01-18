@@ -1,5 +1,6 @@
 package org.folio.kafka.services;
 
+import static java.lang.String.join;
 import static org.folio.kafka.KafkaTopicNameHelper.formatTopicName;
 import static org.folio.kafka.services.KafkaEnvironmentProperties.environment;
 
@@ -29,6 +30,14 @@ public interface KafkaTopic {
    */
   default short replicationFactor(){
     return KafkaEnvironmentProperties.replicationFactor();
+  }
+
+  /**
+   * Returns module topic name.
+   * Order: {modulePrefix}.{topicName}
+   */
+  default String moduleTopicName() {
+    return join(".", moduleName(), topicName());
   }
 
   /**
