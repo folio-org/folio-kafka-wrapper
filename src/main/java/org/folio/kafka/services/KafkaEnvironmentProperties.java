@@ -10,18 +10,23 @@ public final class KafkaEnvironmentProperties {
   private KafkaEnvironmentProperties() { }
 
   public static String port() {
-    return firstNonBlank(getenv("KAFKA_PORT"), getProperty("kafka-port"), "9092");
+    return firstNonBlank(
+      getenv("KAFKA_PORT"), getProperty("KAFKA_PORT"), getProperty("kafka-port"), "9092");
   }
 
   public static String host() {
-    return firstNonBlank(getenv("KAFKA_HOST"), getProperty("kafka-host"), "localhost");
+    return firstNonBlank(
+      getenv("KAFKA_HOST"), getProperty("KAFKA_HOST"), getProperty("kafka-host"), "localhost");
   }
 
   public static String environment() {
-    return firstNonBlank(getenv("ENV"), getProperty("env"), getProperty("environment"), "folio");
+    return firstNonBlank(
+      getenv("ENV"), getProperty("ENV"), getProperty("env"), getProperty("environment"), "folio");
   }
 
   public static short replicationFactor() {
-    return parseShort(firstNonBlank(getenv("REPLICATION_FACTOR"), getProperty("replication-factor"), "1"));
+    return parseShort(firstNonBlank(
+      getenv("REPLICATION_FACTOR"), getProperty("REPLICATION_FACTOR"), getProperty("replication-factor"), "1")
+    );
   }
 }
