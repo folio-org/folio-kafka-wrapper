@@ -1,3 +1,11 @@
+## 2023-03-02 v2.7.0
+* [MODDATAIMP-750](https://issues.folio.org/browse/MODDATAIMP-750) Update util dependencies
+* [MODDATAIMP-736](https://issues.folio.org/browse/MODDATAIMP-736) Adjust logging configuration to display datetime in a proper format
+* [KAFKAWRAP-21](https://issues.folio.org/browse/KAFKAWRAP-21) Logging improvement
+* [KAFKAWRAP-30](https://issues.folio.org/browse/KAFKAWRAP-30) Logging improvement - Configuration
+* [KAFKAWRAP-29](https://issues.folio.org/browse/KAFKAWRAP-29) Implement mechanism of topic creation
+* [KAFKAWRAP-28](https://issues.folio.org/browse/KAFKAWRAP-28) Fixed sporadic failures in KafkaConsumerWrapperTest
+
 ## 2022-10-18 v2.6.1
 * [KAFKAWRAP-25](https://issues.folio.org/browse/KAFKAWRAP-25) Upgrade dependencies fixing vulnerabilities
 * [KAFKAWRAP-26](https://issues.folio.org/browse/KAFKAWRAP-26) Publish jars with source code and javadoc
