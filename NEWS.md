@@ -1,3 +1,6 @@
+## 2023-03-06 v2.7.1
+* [KAFKAWRAP-34](https://issues.folio.org/browse/KAFKAWRAP-34) Reduce default number of partitions from 50 to 1
+
 ## 2023-03-02 v2.7.0
 * [MODDATAIMP-750](https://issues.folio.org/browse/MODDATAIMP-750) Update util dependencies
 * [MODDATAIMP-736](https://issues.folio.org/browse/MODDATAIMP-736) Adjust logging configuration to display datetime in a proper format
