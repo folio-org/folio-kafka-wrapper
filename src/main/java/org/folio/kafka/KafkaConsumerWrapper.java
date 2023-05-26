@@ -153,6 +153,10 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
     kafkaConsumer.resume();
   }
 
+  public void fetch(long amount) {
+    kafkaConsumer.fetch(amount);
+  }
+
   /**
    * Gets usage demand to determine if consumer paused.
    *
