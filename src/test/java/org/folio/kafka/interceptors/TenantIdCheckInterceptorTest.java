@@ -8,6 +8,7 @@ import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.appender.AbstractAppender;
 import org.junit.Assert;
 import org.junit.Test;
+import org.slf4j.helpers.MessageFormatter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,12 +41,14 @@ public class TenantIdCheckInterceptorTest {
     ((LoggerContext) LogManager.getContext(false)).getConfiguration().addAppender(appender);
     ((org.apache.logging.log4j.core.Logger) logger).addAppender(appender);
     appender.start();
-    ProducerRecord<String, String> record = new ProducerRecord<>("topicName", 0, "key-0", "value-0");
+    String topicName = "topicName";
+    ProducerRecord<String, String> record = new ProducerRecord<>(topicName, 0, "key-0", "value-0");
     TenantIdCheckInterceptor tenantIdCheckInterceptor = new TenantIdCheckInterceptor();
 
     tenantIdCheckInterceptor.onSend(record);
 
     Assert.assertEquals(1, appender.getMessages().size());
-    Assert.assertEquals(TenantIdCheckInterceptor.TENANT_ID_ERROR_MESSAGE + record.topic(), appender.getMessages().get(0));
+    Assert.assertEquals(MessageFormatter.format(TenantIdCheckInterceptor.TENANT_ID_ERROR_MESSAGE, topicName).getMessage()
+      ,appender.getMessages().get(0));
   }
 }
