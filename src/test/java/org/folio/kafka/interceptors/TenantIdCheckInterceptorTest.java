@@ -39,12 +39,13 @@ public class TenantIdCheckInterceptorTest {
     TestAppender appender = new TestAppender("TestAppender", null);
     ((LoggerContext) LogManager.getContext(false)).getConfiguration().addAppender(appender);
     ((org.apache.logging.log4j.core.Logger) logger).addAppender(appender);
+    appender.start();
     ProducerRecord<String, String> record = new ProducerRecord<>("topicName", 0, "key-0", "value-0");
     TenantIdCheckInterceptor tenantIdCheckInterceptor = new TenantIdCheckInterceptor();
 
     tenantIdCheckInterceptor.onSend(record);
 
     Assert.assertEquals(1, appender.getMessages().size());
-    Assert.assertEquals(TenantIdCheckInterceptor.TENANT_ID_ERROR_MESSAGE, appender.getMessages().get(0));
+    Assert.assertEquals(TenantIdCheckInterceptor.TENANT_ID_ERROR_MESSAGE + record.topic(), appender.getMessages().get(0));
   }
 }

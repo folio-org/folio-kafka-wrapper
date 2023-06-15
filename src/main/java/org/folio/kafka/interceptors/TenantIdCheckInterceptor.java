@@ -19,8 +19,8 @@ public class TenantIdCheckInterceptor implements ProducerInterceptor<String, Str
 
   private static final Logger LOGGER = LogManager.getLogger();
 
-  public static final String TENANT_ID_ERROR_MESSAGE = "Kafka record does not have a tenant identifying header. " +
-    "Use KafkaProducerRecordBuilder to build the record";
+  protected static final String TENANT_ID_ERROR_MESSAGE = "Kafka record does not have a tenant identifying header. " +
+    "Use KafkaProducerRecordBuilder to build the record. TopicName=";
   @Override
   public ProducerRecord<String, String> onSend(ProducerRecord<String, String> record) {
     Headers headers = record.headers();
@@ -31,7 +31,7 @@ public class TenantIdCheckInterceptor implements ProducerInterceptor<String, Str
       }
     }
     if (!isTenantIdHeaderExist) {
-      LOGGER.error(TENANT_ID_ERROR_MESSAGE);
+      LOGGER.error(TENANT_ID_ERROR_MESSAGE + record.topic());
     }
 
     return record;
