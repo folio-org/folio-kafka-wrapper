@@ -2,6 +2,7 @@ package org.folio.kafka;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.folio.kafka.interceptors.TenantIdCheckInterceptor;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -53,5 +54,18 @@ public class KafkaConfigTest {
 
       Assert.assertEquals(5, kafkaConfig.getNumberOfPartitions());
     }
+
+  @Test
+  public void shouldHaveTenantIdInterceptorSet() {
+    KafkaConfig kafkaConfig = KafkaConfig.builder()
+      .kafkaHost("127.0.0.1")
+      .kafkaPort("9092")
+      .build();
+
+    Map<String, String> producerProps = kafkaConfig.getProducerProps();
+
+    Assert.assertEquals(TenantIdCheckInterceptor.class.getName(),
+      producerProps.getOrDefault(ProducerConfig.INTERCEPTOR_CLASSES_CONFIG, ""));
+  }
 
 }
