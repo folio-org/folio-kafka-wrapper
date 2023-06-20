@@ -28,6 +28,7 @@ public class TenantIdCheckInterceptor implements ProducerInterceptor<String, Str
     for (Header header : headers) {
       if (header.key().equals(TENANT_ID)) {
         isTenantIdHeaderExist = true;
+        break;
       }
     }
     if (!isTenantIdHeaderExist) {
