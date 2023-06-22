@@ -1,14 +1,23 @@
 package org.folio.kafka;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.regex.Pattern;
 
+import org.junit.After;
 import org.junit.Test;
 
 public class KafkaTopicNameHelperTest {
+
+  @After
+  public void tearDown(){
+    // revert qualifier since KafkaTopicNameHelper is static and can affect other tests
+    KafkaTopicNameHelper.setTenantCollectionTopicsQualifier(null);
+  }
 
   @Test
   public void shouldFormatSubscriptionPatternForTenantAnySymbolWithAnyLength() {
@@ -58,5 +67,23 @@ public class KafkaTopicNameHelperTest {
     String topicName = KafkaTopicNameHelper.formatTopicName("folio", "Default", "test","DI_COMPLETED");
     assertNotNull(topicName);
     assertEquals("folio.Default.test.DI_COMPLETED", topicName);
+
+    // enable tenant collection topics
+    KafkaTopicNameHelper.setTenantCollectionTopicsQualifier("COLLECTION");
+    topicName = KafkaTopicNameHelper.formatTopicName("folio", "Default", "test","DI_COMPLETED");
+    assertNotNull(topicName);
+    assertEquals("folio.Default.COLLECTION.DI_COMPLETED", topicName);
+  }
+
+  @Test
+  public void isTenantCollectionEnabled(){
+    assertFalse(KafkaTopicNameHelper.isTenantCollectionTopicsEnabled());
+    KafkaTopicNameHelper.setTenantCollectionTopicsQualifier("COLLECTION");
+    assertTrue(KafkaTopicNameHelper.isTenantCollectionTopicsEnabled());
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void shouldErrorWhenBadTenantCollectionQualifier() {
+      KafkaTopicNameHelper.setTenantCollectionTopicsQualifier("diku");
   }
 }
