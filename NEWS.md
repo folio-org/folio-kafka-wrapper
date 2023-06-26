@@ -1,3 +1,6 @@
+## 2023-06-26 v2.7.2
+* [KAFKAWRAP-37](https://issues.folio.org/browse/KAFKAWRAP-37) Implement fetch method
+
 ## 2023-03-06 v2.7.1
 * [KAFKAWRAP-34](https://issues.folio.org/browse/KAFKAWRAP-34) Reduce default number of partitions from 50 to 1
 
