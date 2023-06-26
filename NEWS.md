@@ -1,3 +1,6 @@
+## 2023-06-26 v2.6.3
+* [KAFKAWRAP-37](https://issues.folio.org/browse/KAFKAWRAP-37) Implement fetch method
+
 ## 2022-11-30 v2.6.2
 * [KAFKAWRAP-32](https://issues.folio.org/browse/KAFKAWRAP-32) Add Kafka config parameters
 
