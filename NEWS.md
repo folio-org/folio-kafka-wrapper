@@ -1,3 +1,6 @@
+## 2023-XX-XX v3.0.0-SNAPSHOT
+* [KAFKAWRAP-39](https://issues.folio.org/browse/KAFKAWRAP-39) Upgrade folio-kafka-wrapper to Java 17
+
 ## 2023-03-02 v2.7.0
 * [MODDATAIMP-750](https://issues.folio.org/browse/MODDATAIMP-750) Update util dependencies
 * [MODDATAIMP-736](https://issues.folio.org/browse/MODDATAIMP-736) Adjust logging configuration to display datetime in a proper format
