@@ -13,14 +13,15 @@ import io.vertx.kafka.client.consumer.OffsetAndMetadata;
 import lombok.Builder;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.folio.kafka.exception.DuplicateEventException;
+import org.folio.okapi.common.XOkapiHeaders;
+import org.folio.okapi.common.logging.FolioLoggingContext;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.folio.kafka.exception.DuplicateEventException;
-
 import java.util.regex.Pattern;
 
 public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K, V>> {
@@ -207,6 +208,21 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
 
     LOGGER.debug("handle:: Consumer - id: {} subscriptionPattern: {} a Record has been received. key: {} currentLoad: {} globalLoad: {}",
       id, subscriptionDefinition, record.key(), currentLoad, globalLoadSensor != null ? String.valueOf(globalLoadSensor.current()) : "N/A");
+
+    // populate logging context
+    record.headers().forEach(header -> {
+      String key = header.key();
+      if (key == null) return;
+      String value = header.value() == null ? "" : header.value().toString();
+
+      if (key.equalsIgnoreCase(XOkapiHeaders.REQUEST_ID)) {
+        FolioLoggingContext.put(FolioLoggingContext.REQUEST_ID_LOGGING_VAR_NAME, value);
+      } else if (key.equalsIgnoreCase(XOkapiHeaders.TENANT)) {
+        FolioLoggingContext.put(FolioLoggingContext.TENANT_ID_LOGGING_VAR_NAME, value);
+      } else if (key.equalsIgnoreCase(XOkapiHeaders.USER_ID)) {
+        FolioLoggingContext.put(FolioLoggingContext.USER_ID_LOGGING_VAR_NAME, value);
+      }
+    });
 
     businessHandler.handle(record).onComplete(businessHandlerCompletionHandler(record));
 
