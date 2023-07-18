@@ -12,11 +12,14 @@ import java.util.Set;
 import static io.vertx.kafka.client.producer.KafkaProducerRecord.create;
 import static java.util.Objects.isNull;
 import static org.folio.kafka.headers.FolioKafkaHeaders.TENANT_ID;
+import static org.folio.okapi.common.XOkapiHeaders.REQUEST_ID;
 import static org.folio.okapi.common.XOkapiHeaders.TENANT;
 import static org.folio.okapi.common.XOkapiHeaders.URL;
+import static org.folio.okapi.common.XOkapiHeaders.USER_ID;
 
 public final class KafkaProducerRecordBuilder<K, V> {
-  private static final Set<String> FORWARDER_HEADERS = Set.of(URL.toLowerCase(), TENANT.toLowerCase());
+  private static final Set<String> FORWARDER_HEADERS =
+    Set.of(URL.toLowerCase(), TENANT.toLowerCase(), REQUEST_ID.toLowerCase(), USER_ID.toLowerCase());
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
   private String tenantId;

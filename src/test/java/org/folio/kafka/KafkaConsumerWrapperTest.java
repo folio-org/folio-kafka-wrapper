@@ -29,6 +29,9 @@ import static java.lang.String.format;
 import static net.mguenther.kafka.junit.EmbeddedKafkaCluster.provisionWith;
 import static org.folio.kafka.KafkaConfig.KAFKA_CONSUMER_MAX_POLL_RECORDS_CONFIG;
 import static org.folio.kafka.KafkaTopicNameHelper.getDefaultNameSpace;
+import static org.folio.okapi.common.XOkapiHeaders.REQUEST_ID;
+import static org.folio.okapi.common.XOkapiHeaders.TENANT;
+import static org.folio.okapi.common.XOkapiHeaders.USER_ID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.mock;
@@ -232,6 +235,9 @@ public class KafkaConsumerWrapperTest {
   private void sendRecord(String key, String recordPayload, String topicName, TestContext testContext) {
     try {
       KeyValue<String, String> kafkaRecord = new KeyValue<>(String.valueOf(key), recordPayload);
+      kafkaRecord.addHeader(TENANT, TENANT_ID.getBytes());
+      kafkaRecord.addHeader(REQUEST_ID, "request-id".getBytes());
+      kafkaRecord.addHeader(USER_ID, "user-id".getBytes());
       SendKeyValues<String, String> request = SendKeyValues.to(topicName, Collections.singletonList(kafkaRecord))
         .useDefaults();
 
