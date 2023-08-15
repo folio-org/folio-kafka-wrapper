@@ -21,6 +21,7 @@ import org.folio.okapi.common.logging.FolioLoggingContext;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
@@ -28,7 +29,7 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
 
   private static final Logger LOGGER = LogManager.getLogger();
 
-  public static final int GLOBAL_SENSOR_NA = -1;
+  public static final GlobalLoadSensor GLOBAL_SENSOR_NA = new GlobalLoadSensor.GlobalLoadSensorNA();
 
   private static final AtomicInteger indexer = new AtomicInteger();
 
@@ -36,7 +37,9 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
 
   private final AtomicInteger localLoadSensor = new AtomicInteger();
 
-  private final AtomicInteger pauseRequests = new AtomicInteger();
+  private final AtomicBoolean isPaused = new AtomicBoolean(false);
+
+  private final long periodicCheckInterval = 3000;
 
   private final Vertx vertx;
 
@@ -47,6 +50,8 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
   private final SubscriptionDefinition subscriptionDefinition;
 
   private final GlobalLoadSensor globalLoadSensor;
+
+  private final boolean shouldAddToGlobalLoad;
 
   private final ProcessRecordErrorHandler<K, V> processRecordErrorHandler;
 
@@ -70,13 +75,14 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
   }
 
   @Builder
-  private KafkaConsumerWrapper(Vertx vertx, Context context, KafkaConfig kafkaConfig, SubscriptionDefinition subscriptionDefinition,
+  private KafkaConsumerWrapper(Vertx vertx, Context context, KafkaConfig kafkaConfig, SubscriptionDefinition subscriptionDefinition, Boolean addToGlobalLoad,
                                GlobalLoadSensor globalLoadSensor, ProcessRecordErrorHandler<K, V> processRecordErrorHandler, BackPressureGauge<Integer, Integer, Integer> backPressureGauge, int loadLimit) {
     this.vertx = vertx;
     this.context = context;
     this.kafkaConfig = kafkaConfig;
     this.subscriptionDefinition = subscriptionDefinition;
     this.globalLoadSensor = globalLoadSensor;
+    this.shouldAddToGlobalLoad = addToGlobalLoad != null ? addToGlobalLoad : true;
     this.processRecordErrorHandler = processRecordErrorHandler;
     this.backPressureGauge = backPressureGauge != null ?
       backPressureGauge :
@@ -141,10 +147,43 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
   }
 
   /**
+   * periodically check if the consumer can be resumed
+   */
+  private void startPeriodicCheck() {
+    vertx.setPeriodic(periodicCheckInterval, timerId -> {
+      int globalLoad = getGlobalLoadSensorForMutation().current();
+      int currentLoad = localLoadSensor.get();
+      LOGGER.debug("periodicCheck:: Consumer - id: {} subscriptionPattern: {} checking if consumer can resume. currentLoad: {} globalLoad: {}",
+        id, subscriptionDefinition, currentLoad, globalLoad);
+      if (!backPressureGauge.isThresholdExceeded(globalLoad, currentLoad, loadLimit)) {
+        resume();
+        vertx.cancelTimer(timerId);
+      }
+    });
+  }
+
+  /**
    * Pauses kafka consumer.
    */
   public void pause() {
     kafkaConsumer.pause();
+    isPaused.set(true);
+  }
+
+  /**
+   * Pauses the kafka consumer and enabling a periodic check to see the load is under the threshold and resume
+   * the consumer automatically.
+   */
+  public void pauseWithPeriodicCheck() {
+    pause();
+    startPeriodicCheck();
+  }
+
+  /**
+   * Check if consumer is paused.
+   */
+  public boolean isConsumerPaused() {
+    return isPaused.get();
   }
 
   /**
@@ -152,6 +191,7 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
    */
   public void resume() {
     kafkaConsumer.resume();
+    isPaused.set(false);
   }
 
   public void fetch(long amount) {
@@ -193,17 +233,14 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
   @Override
   public void handle(KafkaConsumerRecord<K, V> record) {
     LOGGER.trace("handle:: Handling record: {}", record);
-    int globalLoad = globalLoadSensor != null ? globalLoadSensor.increment() : GLOBAL_SENSOR_NA;
+    int globalLoad = getGlobalLoadSensorForMutation().increment();
 
     int currentLoad = localLoadSensor.incrementAndGet();
 
-    if (backPressureGauge.isThresholdExceeded(globalLoad, currentLoad, loadLimit)) {
-      int requestNo = pauseRequests.getAndIncrement();
-      LOGGER.debug("handle:: Threshold is exceeded, preparing to pause, globalLoad: {}, currentLoad: {}, requestNo: {}", globalLoad, currentLoad, requestNo);
-      if (requestNo == 0) {
-        pause();
-        LOGGER.info("handle:: Consumer - id: {} subscriptionPattern: {} kafkaConsumer.pause() requested" + " currentLoad: {}, loadLimit: {}", id, subscriptionDefinition, currentLoad, loadLimit);
-      }
+    if (backPressureGauge.isThresholdExceeded(globalLoad, currentLoad, loadLimit) && !isConsumerPaused()) {
+      pauseWithPeriodicCheck();
+      LOGGER.info("handle:: Consumer - id: {} subscriptionPattern: {} kafkaConsumer.pause() requested" + " currentLoad: {}, globalLoad: {}, loadLimit: {}",
+        id, subscriptionDefinition, currentLoad, globalLoad, loadLimit);
     }
 
     LOGGER.debug("handle:: Consumer - id: {} subscriptionPattern: {} a Record has been received. key: {} currentLoad: {} globalLoad: {}",
@@ -229,7 +266,7 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
   }
 
   private Handler<AsyncResult<K>> businessHandlerCompletionHandler(KafkaConsumerRecord<K, V> record) {
-    LOGGER.debug("businessHandlerCompletionHandler:: Starting business completion handler, globalLoadSensor: {}", globalLoadSensor);
+    LOGGER.debug("businessHandlerCompletionHandler:: Consumer - id: {} subscriptionPattern: {} Starting business completion handler, globalLoadSensor: {}", id, subscriptionDefinition, globalLoadSensor.current());
     return har -> {
       try {
         long offset = record.offset() + 1;
@@ -263,18 +300,18 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
       } finally {
         int actualCurrentLoad = localLoadSensor.decrementAndGet();
 
-        int globalLoad = globalLoadSensor != null ? globalLoadSensor.decrement() : GLOBAL_SENSOR_NA;
+        int globalLoad = getGlobalLoadSensorForMutation().decrement();
 
-        if (!backPressureGauge.isThresholdExceeded(globalLoad, actualCurrentLoad, loadBottomGreenLine)) {
-          int requestNo = pauseRequests.decrementAndGet();
-          LOGGER.debug("businessHandlerCompletionHandler:: Threshold is exceeded, preparing to resume, globalLoad: {}, currentLoad: {}, requestNo: {}", globalLoad, actualCurrentLoad, requestNo);
-          if (requestNo == 0) {
+        if (!backPressureGauge.isThresholdExceeded(globalLoad, actualCurrentLoad, loadBottomGreenLine) && isConsumerPaused()) {
             resume();
             LOGGER.info("businessHandlerCompletionHandler:: Consumer - id: {} subscriptionPattern: {} kafkaConsumer.resume() requested currentLoad: {} loadBottomGreenLine: {}", id, subscriptionDefinition, actualCurrentLoad, loadBottomGreenLine);
-          }
         }
       }
     };
+  }
+
+  private GlobalLoadSensor getGlobalLoadSensorForMutation() {
+    return globalLoadSensor != null && shouldAddToGlobalLoad ? globalLoadSensor : GLOBAL_SENSOR_NA;
   }
 
 }

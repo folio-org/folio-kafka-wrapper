@@ -73,6 +73,31 @@ public class KafkaConsumerWrapperTest {
 
   @Test
   public void shouldResumeConsumerAndPollRecordAfterConsumerWasPaused(TestContext testContext) {
+    resumeConsumerAndPollRecordAfterConsumerWasPaused(testContext, new GlobalLoadSensor(), null);
+  }
+
+  /**
+   * When the backpressure gauge takes the global load into account, the consumer should resume
+   * after the global load is minimized.
+   */
+  @Test
+  public void shouldResumeConsumerAndPollRecordAfterConsumerWasPausedGlobalSensor(TestContext testContext) {
+    int globalLoadLimit = 7;
+    GlobalLoadSensor globalLoadSensor = new GlobalLoadSensor(globalLoadLimit);
+    BackPressureGauge<Integer, Integer, Integer> backPressureGauge = (g, l, t) -> (l > 0 && l > t) || (g > globalLoadLimit);
+    resumeConsumerAndPollRecordAfterConsumerWasPaused(testContext, globalLoadSensor, backPressureGauge)
+      .onComplete(ar -> {
+        vertx.setTimer(6000, (l) -> {
+          for (int i = 0; i < globalLoadLimit; i++) {
+            globalLoadSensor.decrement();
+          }
+        });
+      });
+  }
+
+  private Future<Void> resumeConsumerAndPollRecordAfterConsumerWasPaused(TestContext testContext,
+                                                                         GlobalLoadSensor globalLoadSensor,
+                                                                         BackPressureGauge<Integer, Integer, Integer> backPressureGauge) {
     Async async = testContext.async();
     int loadLimit = 5;
     int recordsAmountToSend = 7;
@@ -80,14 +105,15 @@ public class KafkaConsumerWrapperTest {
     System.setProperty(KAFKA_CONSUMER_MAX_POLL_RECORDS_CONFIG, "2");
 
     SubscriptionDefinition subscriptionDefinition = KafkaTopicNameHelper.createSubscriptionDefinition(KAFKA_ENV, getDefaultNameSpace(), eventType());
-    KafkaConsumerWrapper<String, String> kafkaConsumerWrapper = KafkaConsumerWrapper.<String, String>builder()
+    KafkaConsumerWrapper.KafkaConsumerWrapperBuilder<String, String> kafkaConsumerWrapperBuilder = KafkaConsumerWrapper.<String, String>builder()
       .context(vertx.getOrCreateContext())
       .vertx(vertx)
       .kafkaConfig(kafkaConfig)
       .loadLimit(loadLimit)
-      .globalLoadSensor(new GlobalLoadSensor())
-      .subscriptionDefinition(subscriptionDefinition)
-      .build();
+      .globalLoadSensor(globalLoadSensor)
+      .subscriptionDefinition(subscriptionDefinition);
+    if(backPressureGauge != null) kafkaConsumerWrapperBuilder.backPressureGauge(backPressureGauge);
+    KafkaConsumerWrapper<String, String> kafkaConsumerWrapper = kafkaConsumerWrapperBuilder.build();
 
     String topicName = KafkaTopicNameHelper.formatTopicName(KAFKA_ENV, getDefaultNameSpace(), TENANT_ID, eventType());
     List<Promise<String>> promises = new ArrayList<>();
@@ -110,7 +136,7 @@ public class KafkaConsumerWrapperTest {
       }
     }, MODULE_NAME);
 
-    startFuture.onComplete(v -> {
+    return startFuture.onComplete(v -> {
       for (int i = 1; i <= recordsAmountToSend; i++) {
         sendRecord(String.valueOf(i), format("test_payload-%s", i), topicName, testContext);
       }
