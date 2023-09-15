@@ -10,6 +10,7 @@ import java.util.Map;
 import static java.util.UUID.randomUUID;
 import static org.folio.kafka.services.TestKafkaTopic.TOPIC_ONE;
 import static org.folio.okapi.common.XOkapiHeaders.TENANT;
+import static org.folio.okapi.common.XOkapiHeaders.TOKEN;
 import static org.folio.okapi.common.XOkapiHeaders.URL;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -49,14 +50,15 @@ public class SimpleKafkaProducerManagerTest {
     Map<String, String> okapiHeaders = Map.of(
       URL.toLowerCase(), "1",
       TENANT.toLowerCase(), "2",
-      "not-okapi", "3");
+      TOKEN.toLowerCase(), "3",
+      "not-okapi", "4");
 
     var producerRecord = new KafkaProducerRecordBuilder<String, String>()
       .propagateOkapiHeaders(okapiHeaders)
       .value(TOPIC_ONE.topicName())
       .build();
 
-    assertEquals(2, producerRecord.headers().size());
+    assertEquals(3, producerRecord.headers().size());
   }
 
   @Test(expected = ProducerCreationException.class)
