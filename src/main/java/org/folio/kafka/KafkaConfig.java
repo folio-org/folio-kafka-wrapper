@@ -7,6 +7,7 @@ import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.config.SslConfigs;
+import org.folio.kafka.interceptors.TenantIdCheckInterceptor;
 
 import java.util.HashMap;
 import java.util.List;
@@ -89,6 +90,7 @@ public class KafkaConfig {
     producerProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");
     producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
     producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
+    producerProps.put(ProducerConfig.INTERCEPTOR_CLASSES_CONFIG, TenantIdCheckInterceptor.class.getName());
     producerProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, SimpleConfigurationReader.getValue(
       List.of(KAFKA_PRODUCER_COMPRESSION_TYPE_CONFIG, SpringKafkaProperties.KAFKA_PRODUCER_COMPRESSION_TYPE), KAFKA_PRODUCER_COMPRESSION_TYPE_CONFIG_DEFAULT));
 

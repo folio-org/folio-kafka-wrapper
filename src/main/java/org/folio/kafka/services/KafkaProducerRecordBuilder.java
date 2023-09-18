@@ -11,15 +11,19 @@ import java.util.Set;
 
 import static io.vertx.kafka.client.producer.KafkaProducerRecord.create;
 import static java.util.Objects.isNull;
+import static org.folio.kafka.headers.FolioKafkaHeaders.TENANT_ID;
+import static org.folio.okapi.common.XOkapiHeaders.REQUEST_ID;
 import static org.folio.okapi.common.XOkapiHeaders.TENANT;
 import static org.folio.okapi.common.XOkapiHeaders.TOKEN;
 import static org.folio.okapi.common.XOkapiHeaders.URL;
+import static org.folio.okapi.common.XOkapiHeaders.USER_ID;
 
 public final class KafkaProducerRecordBuilder<K, V> {
   private static final Set<String> FORWARDER_HEADERS =
-    Set.of(URL.toLowerCase(), TENANT.toLowerCase(), TOKEN.toLowerCase());
+    Set.of(URL.toLowerCase(), TENANT.toLowerCase(), TOKEN.toLowerCase(), REQUEST_ID.toLowerCase(), USER_ID.toLowerCase());
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
+  private String tenantId;
   private V value;
   private K key;
   private String topic;
@@ -27,6 +31,10 @@ public final class KafkaProducerRecordBuilder<K, V> {
 
   static {
     MAPPER.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
+  }
+
+  public KafkaProducerRecordBuilder(String tenantId) {
+    this.tenantId = tenantId;
   }
 
   public KafkaProducerRecordBuilder<K, V> value(V value) {
@@ -59,10 +67,12 @@ public final class KafkaProducerRecordBuilder<K, V> {
 
   public KafkaProducerRecord<K, String> build() {
     try {
-      if (isNull(value)) throw new NullPointerException();
+      if (isNull(value)) throw new NullPointerException("value cannot be set to null");
+      if (isNull(tenantId)) throw new NullPointerException("tenantId cannot be set to null");
       var valueAsString = MAPPER.writeValueAsString(this.value);
 
       var kafkaProducerRecord = create(topic, key, valueAsString);
+      kafkaProducerRecord.addHeader(TENANT_ID, tenantId);
       headers.forEach(kafkaProducerRecord::addHeader);
 
       return kafkaProducerRecord;

@@ -20,10 +20,10 @@ public interface KafkaTopic {
 
   /**
    * Returns num partitions
-   * Default - 50
+   * Default - 1
    */
   default int numPartitions() {
-    return 50;
+    return 1;
   }
 
   /**
