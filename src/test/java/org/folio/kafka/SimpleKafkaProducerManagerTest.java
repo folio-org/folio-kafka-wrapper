@@ -66,7 +66,7 @@ public class SimpleKafkaProducerManagerTest {
       .value(TOPIC_ONE.topicName())
       .build();
 
-    assertEquals(5, producerRecord.headers().size());
+    assertEquals(6, producerRecord.headers().size());
   }
 
   @Test(expected = ProducerCreationException.class)
