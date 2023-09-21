@@ -13,6 +13,7 @@ import static org.folio.kafka.headers.FolioKafkaHeaders.TENANT_ID;
 import static org.folio.kafka.services.TestKafkaTopic.TOPIC_ONE;
 import static org.folio.okapi.common.XOkapiHeaders.REQUEST_ID;
 import static org.folio.okapi.common.XOkapiHeaders.TENANT;
+import static org.folio.okapi.common.XOkapiHeaders.TOKEN;
 import static org.folio.okapi.common.XOkapiHeaders.URL;
 import static org.folio.okapi.common.XOkapiHeaders.USER_ID;
 import static org.junit.Assert.assertArrayEquals;
@@ -57,6 +58,7 @@ public class SimpleKafkaProducerManagerTest {
       TENANT.toLowerCase(), tenantId,
       USER_ID.toLowerCase(), "user-id",
       REQUEST_ID.toLowerCase(), "request-id",
+      TOKEN.toLowerCase(), "token",
       "not-okapi", "3");
 
     var producerRecord = new KafkaProducerRecordBuilder<String, String>(tenantId)
@@ -64,7 +66,7 @@ public class SimpleKafkaProducerManagerTest {
       .value(TOPIC_ONE.topicName())
       .build();
 
-    assertEquals(5, producerRecord.headers().size());
+    assertEquals(6, producerRecord.headers().size());
   }
 
   @Test(expected = ProducerCreationException.class)
