@@ -76,6 +76,24 @@ public class KafkaTopicNameHelperTest {
   }
 
   @Test
+  public void shouldFormatTopicNameWithoutNamespace() {
+    String topicName = KafkaTopicNameHelper.formatTopicName("folio", "test","DI_COMPLETED");
+    assertNotNull(topicName);
+    assertEquals("folio.test.DI_COMPLETED", topicName);
+
+    // enable tenant collection topics
+    KafkaTopicNameHelper.setTenantCollectionTopicsQualifier("COLLECTION");
+    topicName = KafkaTopicNameHelper.formatTopicName("folio", "test","DI_COMPLETED");
+    assertNotNull(topicName);
+    assertEquals("folio.COLLECTION.DI_COMPLETED", topicName);
+  }
+
+  @Test
+  public void getDefaultNamespace() {
+    assertEquals("Default", KafkaTopicNameHelper.getDefaultNameSpace());
+  }
+
+  @Test
   public void isTenantCollectionEnabled(){
     assertFalse(KafkaTopicNameHelper.isTenantCollectionTopicsEnabled());
     KafkaTopicNameHelper.setTenantCollectionTopicsQualifier("COLLECTION");
