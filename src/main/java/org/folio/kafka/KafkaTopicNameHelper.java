@@ -45,6 +45,14 @@ public class KafkaTopicNameHelper {
     return join(".", env, nameSpace, tenantId, eventType);
   }
 
+  public static String formatTopicName(String env, String tenant, String eventType) {
+    String tenantId = tenant;
+    if (TENANT_COLLECTION_TOPICS_ENABLED) {
+      tenantId = TENANT_COLLECTION_TOPIC_QUALIFIER;
+    }
+    return join(".", env, tenantId, eventType);
+  }
+
   public static String getEventTypeFromTopicName(String topic) {
     int eventTypeIndex = StringUtils.isBlank(topic) ? -1 : topic.lastIndexOf('.') + 1;
     if (eventTypeIndex > 0) {
