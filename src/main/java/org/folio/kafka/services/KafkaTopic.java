@@ -30,7 +30,7 @@ public interface KafkaTopic {
    * Returns replication factor.
    * Default - environment variable 'REPLICATION_FACTOR'
    */
-  default short replicationFactor(){
+  default short replicationFactor() {
     return KafkaEnvironmentProperties.replicationFactor();
   }
 
@@ -47,7 +47,7 @@ public interface KafkaTopic {
    * Order: {environment}.{tenantId}.{modulePrefix}.{topicName}
    */
   default String fullTopicName(String tenant) {
-    return formatTopicName(environment(), tenant, moduleName(), topicName());
+    return formatTopicName(environment(), tenant, join(".", moduleName(), topicName()));
   }
 
   /**
@@ -55,6 +55,6 @@ public interface KafkaTopic {
    * Order: {environment}.{tenantId}.{modulePrefix}.{topicName}
    */
   default String fullTopicName(KafkaConfig config, String tenant) {
-    return formatTopicName(config.getEnvId(), tenant, moduleName(), topicName());
+    return formatTopicName(environment(), tenant, join(".", moduleName(), topicName()));
   }
 }
