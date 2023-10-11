@@ -1,5 +1,13 @@
-## 2023-XX-XX v3.0.0-SNAPSHOT
+## 2023-10-11 v3.0.0
 * [KAFKAWRAP-39](https://issues.folio.org/browse/KAFKAWRAP-39) Upgrade folio-kafka-wrapper to Java 17
+* [KAFKAWRAP-34](https://issues.folio.org/browse/KAFKAWRAP-34) Reduce default number of partitions from 50 to 1
+* [KAFKAWRAP-37](https://issues.folio.org/browse/KAFKAWRAP-37) Added fetch() method to KafkaConsumerWrapper
+* [KAFKAWRAP-38](https://issues.folio.org/browse/KAFKAWRAP-38) Add Tenant Id To Every Produced Message
+* [KAFKAWRAP-41](https://issues.folio.org/browse/KAFKAWRAP-41) Add tenant collection topics
+* [KAFKAWRAP-45](https://issues.folio.org/browse/KAFKAWRAP-45) Propagate Logging Context From Kafka Headers
+* [KAFKAWRAP-46](https://issues.folio.org/browse/KAFKAWRAP-46) Consider global load sensor when threshold exceeded
+* [MODINVSTOR-1076](https://issues.folio.org/browse/MODINVSTOR-1076) Add X-Okapi-Token header to kafka producer record headers
+* [KAFKAWRAP-47](https://issues.folio.org/browse/KAFKAWRAP-47) Extend KafkaTopicNameHelper to have formatTopicName without nameSpace
 
 ## 2023-03-02 v2.7.0
 * [MODDATAIMP-750](https://issues.folio.org/browse/MODDATAIMP-750) Update util dependencies
