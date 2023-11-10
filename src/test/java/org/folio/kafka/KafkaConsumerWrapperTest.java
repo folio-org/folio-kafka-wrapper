@@ -72,6 +72,28 @@ public class KafkaConsumerWrapperTest {
   }
 
   @Test
+  public void consumerInResumedModeAfterFetch(TestContext testContext) {
+    int loadLimit = 5;
+    SubscriptionDefinition subscriptionDefinition = KafkaTopicNameHelper.createSubscriptionDefinition(KAFKA_ENV, getDefaultNameSpace(), eventType());
+    KafkaConsumerWrapper<String, String> kafkaConsumerWrapper = KafkaConsumerWrapper.<String, String>builder()
+      .context(vertx.getOrCreateContext())
+      .vertx(vertx)
+      .kafkaConfig(kafkaConfig)
+      .loadLimit(loadLimit)
+      .globalLoadSensor(new GlobalLoadSensor.GlobalLoadSensorNA())
+      .subscriptionDefinition(subscriptionDefinition)
+      .build();
+
+    kafkaConsumerWrapper.start(record -> Future.succeededFuture(record.key()), MODULE_NAME);
+    testContext.assertFalse(kafkaConsumerWrapper.isConsumerPaused());
+    kafkaConsumerWrapper.pause();
+    testContext.assertTrue(kafkaConsumerWrapper.isConsumerPaused());
+    kafkaConsumerWrapper.fetch(2);
+    testContext.assertFalse(kafkaConsumerWrapper.isConsumerPaused());;
+
+  }
+
+  @Test
   public void shouldResumeConsumerAndPollRecordAfterConsumerWasPaused(TestContext testContext) {
     resumeConsumerAndPollRecordAfterConsumerWasPaused(testContext, new GlobalLoadSensor(), null);
   }
