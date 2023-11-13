@@ -1,3 +1,6 @@
+## 2023-XX-XX v3.1.0-SNAPSHOT
+* [KAFKAWRAP-50](https://issues.folio.org/browse/KAFKAWRAP-50) KafkaConsumerWrapper.fetch Should Set Consumer to Resumed State
+
 ## 2023-10-11 v3.0.0
 * [KAFKAWRAP-39](https://issues.folio.org/browse/KAFKAWRAP-39) Upgrade folio-kafka-wrapper to Java 17
 * [KAFKAWRAP-34](https://issues.folio.org/browse/KAFKAWRAP-34) Reduce default number of partitions from 50 to 1
