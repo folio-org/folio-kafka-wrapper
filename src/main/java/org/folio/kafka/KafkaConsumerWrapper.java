@@ -196,6 +196,7 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
 
   public void fetch(long amount) {
     kafkaConsumer.fetch(amount);
+    isPaused.set(false);
   }
 
   /**
