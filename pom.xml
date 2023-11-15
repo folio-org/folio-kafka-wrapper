@@ -4,7 +4,7 @@
 
   <groupId>org.folio</groupId>
   <artifactId>folio-kafka-wrapper</artifactId>
-  <version>3.0.2</version>
+  <version>3.0.3-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>folio-kafka-wrapper</name>
 
@@ -122,7 +122,7 @@
     <url>https://github.com/folio-org/folio-kafka-wrapper</url>
     <connection>scm:git:git://github.com:folio-org/folio-kafka-wrapper.git</connection>
     <developerConnection>scm:git:git@github.com:folio-org/folio-kafka-wrapper.git</developerConnection>
-    <tag>v3.0.2</tag>
+    <tag>v3.0.0</tag>
   </scm>
 
   <build>
