@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 @Getter
-@Builder
+@Builder(toBuilder = true)
 @ToString
 public class KafkaConfig {
   public static final String KAFKA_CONSUMER_AUTO_OFFSET_RESET_CONFIG = "kafka.consumer.auto.offset.reset";
@@ -83,6 +83,16 @@ public class KafkaConfig {
   private final int replicationFactor;
   private final String envId;
   private final int maxRequestSize;
+  /**
+   * Deserializer class reference that will be used for record keys in a Kafka consumer.
+   * If not set, a String deserializer is used
+   */
+  private final String consumerKeyDeserializerClass;
+  /**
+   * Deserializer class reference that will be used for record values in a Kafka consumer
+   * If not set, a String deserializer is used
+   */
+  private final String consumerValueDeserializerClass;
 
   public Map<String, String> getProducerProps() {
     Map<String, String> producerProps = new HashMap<>();
@@ -120,8 +130,10 @@ public class KafkaConfig {
     Map<String, String> consumerProps = new HashMap<>();
     consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, getKafkaUrl());
     consumerProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
-    consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer");
-    consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer");
+    consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+      this.getConsumerKeyDeserializerClass() != null ? this.getConsumerKeyDeserializerClass() : "org.apache.kafka.common.serialization.StringDeserializer");
+    consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+      this.getConsumerValueDeserializerClass() != null ? this.getConsumerValueDeserializerClass() : "org.apache.kafka.common.serialization.StringDeserializer");
 
     consumerProps.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, SimpleConfigurationReader.getValue(
       List.of(KAFKA_CONSUMER_MAX_POLL_RECORDS_CONFIG, SpringKafkaProperties.KAFKA_CONSUMER_MAX_POLL_RECORDS), KAFKA_CONSUMER_MAX_POLL_RECORDS_CONFIG_DEFAULT));
