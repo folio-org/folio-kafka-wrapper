@@ -21,7 +21,11 @@ KafkaConfig kafkaConfig = KafkaConfig.builder()
       .maxRequestSize(maxRequestSize)
       .build();
 ```
-
+Creating A Topic
+```java
+KafkaAdminClientService kafkaAdminClientService = new KafkaAdminClientService(vertx);
+kafkaAdminClientService.createKafkaTopics(DataImportKafkaTopic.values(), tenantId);
+```
 Creating A Producer
 ```java
 var producerManager = new SimpleKafkaProducerManager(vertxContext.owner(), kafkaConfig);
