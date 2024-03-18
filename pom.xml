@@ -4,7 +4,7 @@
 
   <groupId>org.folio</groupId>
   <artifactId>folio-kafka-wrapper</artifactId>
-  <version>3.1.0-SNAPSHOT</version>
+  <version>3.2.0-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>folio-kafka-wrapper</name>
 
@@ -17,7 +17,7 @@
 
   <properties>
     <junit.version>4.13.2</junit.version>
-    <lombok.version>1.18.24</lombok.version>
+    <lombok.version>1.18.30</lombok.version>
     <commons-lang3.version>3.12.0</commons-lang3.version>
     <kafkaclients.version>3.3.2</kafkaclients.version>
     <kafkajunit.version>3.3.0</kafkajunit.version>
