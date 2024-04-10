@@ -7,6 +7,7 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.kafka.admin.KafkaAdminClient;
 import io.vertx.kafka.admin.NewTopic;
 import org.apache.kafka.common.errors.TopicExistsException;
+import org.folio.kafka.KafkaTopicNameHelper;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -29,6 +30,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @RunWith(VertxUnitRunner.class)
@@ -129,6 +131,17 @@ public class KafkaAdminClientServiceTest {
 
         assertTrue(allExpectedTopics.containsAll(deleteTopicsCaptor.getAllValues().get(0)));
       }));
+  }
+
+  @Test
+  public void shouldNotDeleteTopics_whenCollectionTopicIsEnabled(TestContext testContext) {
+    try (var mocked = mockStatic(KafkaTopicNameHelper.class)) {
+      mocked.when(KafkaTopicNameHelper::isTenantCollectionTopicsEnabled).thenReturn(true);
+
+      new KafkaAdminClientService(vertx)
+        .deleteKafkaTopics(TestKafkaTopic.values(), STUB_TENANT)
+        .onComplete(testContext.asyncAssertSuccess(notUsed -> verifyNoInteractions(mockClient)));
+    }
   }
 
   private List<String> getTopicNames(ArgumentCaptor<List<NewTopic>> createTopicsCaptor) {

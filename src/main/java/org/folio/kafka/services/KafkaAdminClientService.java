@@ -15,6 +15,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.folio.kafka.KafkaTopicNameHelper;
 
 import static io.vertx.kafka.admin.KafkaAdminClient.create;
 import static org.apache.logging.log4j.LogManager.getLogger;
@@ -41,6 +42,9 @@ public class KafkaAdminClientService {
   }
 
   public Future<Void> deleteKafkaTopics(KafkaTopic[] enumTopics, String tenantId) {
+    if (KafkaTopicNameHelper.isTenantCollectionTopicsEnabled()) {
+      return Future.succeededFuture();
+    }
     List<String> topicsToDelete = readTopics(enumTopics, tenantId)
       .map(NewTopic::getName)
       .collect(Collectors.toList());
