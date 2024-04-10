@@ -1,3 +1,6 @@
+## 2024-04-10 v3.0.3
+* [KAFKAWRAP-54](https://issues.folio.org/browse/KAFKAWRAP-50) Do not delete kafka topics if collection topic is enabled
+
 ## 2023-11-15 v3.0.2
 * [KAFKAWRAP-50](https://issues.folio.org/browse/KAFKAWRAP-50) KafkaConsumerWrapper.fetch Should Set Consumer to Resumed State
 
