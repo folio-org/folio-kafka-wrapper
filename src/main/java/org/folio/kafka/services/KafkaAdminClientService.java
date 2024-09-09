@@ -1,26 +1,30 @@
 package org.folio.kafka.services;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
+import org.apache.logging.log4j.Logger;
+import org.folio.kafka.KafkaConfig;
+import org.folio.kafka.KafkaTopicNameHelper;
 import io.vertx.core.Context;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.kafka.admin.KafkaAdminClient;
 import io.vertx.kafka.admin.NewTopic;
-import org.apache.logging.log4j.Logger;
-import org.folio.kafka.KafkaConfig;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.function.Function;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import org.folio.kafka.KafkaTopicNameHelper;
 
 import static io.vertx.kafka.admin.KafkaAdminClient.create;
 import static org.apache.logging.log4j.LogManager.getLogger;
 
 public class KafkaAdminClientService {
+
+  public static final String MESSAGE_RETENTION_TIME_IN_MILLIS_CONFIG = "retention.ms";
+  public static final String MESSAGE_MAX_SIZE_IN_BYTES_CONFIG = "max.message.bytes";
 
   private static final Logger log = getLogger(KafkaAdminClientService.class);
   private final Supplier<KafkaAdminClient> clientFactory;
@@ -34,7 +38,7 @@ public class KafkaAdminClientService {
 
   public Future<Void> createKafkaTopics(KafkaTopic[] enumTopics, String tenantId) {
     final List<NewTopic> topics = readTopics(enumTopics, tenantId)
-      .collect(Collectors.toList());
+      .toList();
 
     return withKafkaAdminClient(adminClient -> createKafkaTopics(1, topics, adminClient))
       .onSuccess(result -> log.info("createKafkaTopics:: Topics created successfully"))
@@ -47,7 +51,7 @@ public class KafkaAdminClientService {
     }
     List<String> topicsToDelete = readTopics(enumTopics, tenantId)
       .map(NewTopic::getName)
-      .collect(Collectors.toList());
+      .toList();
 
     return withKafkaAdminClient(kafkaAdminClient -> kafkaAdminClient.deleteTopics(topicsToDelete))
       .onSuccess(x -> log.info("deleteKafkaTopics:: Topics deleted successfully"))
@@ -87,10 +91,28 @@ public class KafkaAdminClientService {
 
   private Stream<NewTopic> readTopics(KafkaTopic[] enumTopics, String tenant) {
     return Arrays.stream(enumTopics)
-      .map(topic -> new NewTopic(
-        topic.fullTopicName(tenant),
-        topic.numPartitions(),
-        topic.replicationFactor()));
+      .map(topic -> {
+        var newTopic = new NewTopic(topic.fullTopicName(tenant), topic.numPartitions(), topic.replicationFactor());
+        kafkaTopicConfigs(topic).ifPresent(newTopic::setConfig);
+        return newTopic;
+      });
+  }
+
+  private Optional<Map<String, String>> kafkaTopicConfigs(KafkaTopic topic) {
+    if (topic.messageRetentionTime() == null && topic.messageMaxSize() == null) {
+      return Optional.empty();
+    }
+
+    HashMap<String, String> configs = new HashMap<>();
+    if (topic.messageRetentionTime() != null) {
+      configs.put(MESSAGE_RETENTION_TIME_IN_MILLIS_CONFIG, topic.messageRetentionTime().toString());
+    }
+
+    if (topic.messageMaxSize() != null) {
+      configs.put(MESSAGE_MAX_SIZE_IN_BYTES_CONFIG, topic.messageMaxSize().toString());
+    }
+
+    return Optional.of(configs);
   }
 
   /**

@@ -57,4 +57,24 @@ public interface KafkaTopic {
   default String fullTopicName(KafkaConfig config, String tenant) {
     return formatTopicName(environment(), tenant, join(".", moduleName(), topicName()));
   }
+
+  /**
+   * Returns retention time in milliseconds for this topic's messages.
+   *
+   * @return {@link Integer} type value for a message's retention in milliseconds.
+   * if value is null then it means to use default value for this config
+   */
+  default Integer messageRetentionTime() {
+    return null;
+  }
+
+  /**
+   * Returns message's max size in bytes.
+   *
+   * @return {@link Integer} type value of message's max size in bytes.
+   * if value is null then it means to use default value for this config
+   */
+  default Integer messageMaxSize() {
+    return null;
+  }
 }
