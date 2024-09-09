@@ -20,4 +20,22 @@ public enum TestKafkaTopic implements KafkaTopic {
   public String topicName() {
     return topic;
   }
+
+  @Override
+  public Integer messageRetentionTime() {
+    if (this == TOPIC_THREE) {
+      return 1000;
+    }
+    return null;
+  }
+
+  @Override
+  public Integer messageMaxSize() {
+    if (this == TOPIC_THREE) {
+      return 2000;
+    }
+    return null;
+  }
+
+
 }

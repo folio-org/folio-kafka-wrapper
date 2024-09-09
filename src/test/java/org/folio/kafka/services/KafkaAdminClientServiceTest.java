@@ -21,6 +21,7 @@ import static io.vertx.core.Future.failedFuture;
 import static io.vertx.core.Future.succeededFuture;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -113,6 +114,16 @@ public class KafkaAdminClientServiceTest {
 
         // Only these items are expected, so implicitly checks size of list
         assertTrue(allExpectedTopics.containsAll(getTopicNames(createTopicsCaptor)));
+
+        var topicWithConfigs = createTopicsCaptor.getAllValues().get(0).stream()
+          .filter(topic -> topic.getConfig() != null)
+          .filter(topic -> Boolean.FALSE.equals(topic.getConfig().isEmpty()))
+          .findFirst();
+        assertTrue(topicWithConfigs.isPresent());
+        assertEquals("1000",
+          topicWithConfigs.get().getConfig().get(KafkaAdminClientService.MESSAGE_RETENTION_TIME_IN_MILLIS_CONFIG));
+        assertEquals("2000",
+          topicWithConfigs.get().getConfig().get(KafkaAdminClientService.MESSAGE_MAX_SIZE_IN_BYTES_CONFIG));
       }));
   }
 
