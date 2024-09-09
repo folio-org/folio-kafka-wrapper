@@ -15,7 +15,6 @@ import org.mockito.ArgumentCaptor;
 
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static io.vertx.core.Future.failedFuture;
 import static io.vertx.core.Future.succeededFuture;
@@ -37,13 +36,14 @@ import static org.mockito.Mockito.when;
 @RunWith(VertxUnitRunner.class)
 public class KafkaAdminClientServiceTest {
 
+  private static final String STUB_TENANT = "foo-tenant";
+
   private final List<String> allExpectedTopics = List.of(
     "folio.foo-tenant.kafka-wrapper.topic1",
     "folio.foo-tenant.kafka-wrapper.topic2",
     "folio.foo-tenant.kafka-wrapper.topic3"
   );
 
-  private final String STUB_TENANT = "foo-tenant";
   private KafkaAdminClient mockClient;
   private Vertx vertx;
 
@@ -120,9 +120,9 @@ public class KafkaAdminClientServiceTest {
           .filter(topic -> Boolean.FALSE.equals(topic.getConfig().isEmpty()))
           .findFirst();
         assertTrue(topicWithConfigs.isPresent());
-        assertEquals("1000",
+        assertEquals(TestKafkaTopic.TOPIC_THREE.messageRetentionTime() + "",
           topicWithConfigs.get().getConfig().get(KafkaAdminClientService.MESSAGE_RETENTION_TIME_IN_MILLIS_CONFIG));
-        assertEquals("2000",
+        assertEquals(TestKafkaTopic.TOPIC_THREE.messageMaxSize() + "",
           topicWithConfigs.get().getConfig().get(KafkaAdminClientService.MESSAGE_MAX_SIZE_IN_BYTES_CONFIG));
       }));
   }
@@ -158,7 +158,7 @@ public class KafkaAdminClientServiceTest {
   private List<String> getTopicNames(ArgumentCaptor<List<NewTopic>> createTopicsCaptor) {
     return createTopicsCaptor.getAllValues().get(0).stream()
       .map(NewTopic::getName)
-      .collect(Collectors.toList());
+      .toList();
   }
 
   private Future<Void> createKafkaTopicsAsync(KafkaAdminClient client) {
