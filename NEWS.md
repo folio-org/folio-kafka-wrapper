@@ -1,3 +1,7 @@
+## 2024-10-28 v3.2.0
+* [KAFKAWRAP-54](https://folio-org.atlassian.net/browse/KAFKAWRAP-54) Do not delete kafka topics if collection topic is enabled
+* [KAFKAWRAP-58](https://folio-org.atlassian.net/browse/KAFKAWRAP-58) Add ability to configure Kafka topic
+
 ## 2024-03-18 v3.1.0
 * [KAFKAWRAP-50](https://issues.folio.org/browse/KAFKAWRAP-50) KafkaConsumerWrapper.fetch Should Set Consumer to Resumed State
 * [KAFKAWRAP-52](https://folio-org.atlassian.net/browse/KAFKAWRAP-52) Allow Consumer Deserializers to be Configured
