@@ -1,4 +1,4 @@
-## 2025-XX-XX v3.3.0
+## 2025-03-07 v3.3.0
 * [KAFKAWRAP-61](https://folio-org.atlassian.net/browse/KAFKAWRAP-61) Update to folio-kafka-wrapper-util Java 21
 
 ## 2024-10-28 v3.2.0
