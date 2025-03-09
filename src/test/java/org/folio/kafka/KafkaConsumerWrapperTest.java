@@ -1,6 +1,7 @@
 package org.folio.kafka;
 
 import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -98,7 +99,10 @@ public class KafkaConsumerWrapperTest {
 
   @Test
   public void shouldResumeConsumerAndPollRecordAfterConsumerWasPaused(TestContext testContext) {
-    resumeConsumerAndPollRecordAfterConsumerWasPaused(testContext, new GlobalLoadSensor(), null);
+    resumeConsumerAndPollRecordAfterConsumerWasPaused(testContext, new GlobalLoadSensor(), null)
+    .onComplete(testContext.asyncAssertSuccess(pauseCount -> {
+      testContext.assertEquals(1, pauseCount);
+    }));
   }
 
   /**
@@ -120,12 +124,13 @@ public class KafkaConsumerWrapperTest {
       });
   }
 
-  private Future<Void> resumeConsumerAndPollRecordAfterConsumerWasPaused(TestContext testContext,
+  private Future<Integer> resumeConsumerAndPollRecordAfterConsumerWasPaused(TestContext testContext,
                                                                          GlobalLoadSensor globalLoadSensor,
                                                                          BackPressureGauge<Integer, Integer, Integer> backPressureGauge) {
-    Async async = testContext.async();
+    Promise<Integer> promise = Promise.promise();
     int loadLimit = 5;
     int recordsAmountToSend = 7;
+    AtomicInteger pauseCount = new AtomicInteger();
     System.setProperty(KAFKA_CONSUMER_MAX_POLL_RECORDS_CONFIG, "2");
 
     SubscriptionDefinition subscriptionDefinition = KafkaTopicNameHelper.createSubscriptionDefinition(KAFKA_ENV, getDefaultNameSpace(), eventType());
@@ -150,14 +155,19 @@ public class KafkaConsumerWrapperTest {
     }
     // create back pressure by waiting until all records have been sent before starting the consumer
 
-    return future.compose(x -> kafkaConsumerWrapper.start(r -> {
-      var i = recordCounter.incrementAndGet();
-      testContext.assertEquals(format("test_payload-%s", i), r.value());
-      if (i == loadLimit + 2) {
-        async.complete();
-      }
-      return Future.succeededFuture(r.key());
-    }, MODULE_NAME));
+    future.compose(y -> kafkaConsumerWrapper.start(r -> {
+          var i = recordCounter.incrementAndGet();
+          testContext.assertEquals(format("test_payload-%s", i), r.value());
+          if (kafkaConsumerWrapper.isConsumerPaused()) {
+            pauseCount.incrementAndGet();
+          }
+          if (i == loadLimit + 2) {
+            promise.complete(pauseCount.get());
+          }
+          return Future.future(timer -> vertx.setTimer(20, x -> timer.complete(r.key())));
+        }, MODULE_NAME));
+     return promise.future()
+         .onComplete(testContext.asyncAssertSuccess());
   }
 
   @Test
