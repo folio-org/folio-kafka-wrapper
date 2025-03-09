@@ -1,17 +1,14 @@
 package org.folio.kafka;
 
 import io.vertx.core.Future;
-import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.kafka.admin.KafkaAdminClient;
 import io.vertx.kafka.client.consumer.KafkaConsumerRecord;
-import net.mguenther.kafka.junit.EmbeddedKafkaCluster;
-import net.mguenther.kafka.junit.EmbeddedKafkaClusterConfig;
-import net.mguenther.kafka.junit.KeyValue;
-import net.mguenther.kafka.junit.SendKeyValues;
+import io.vertx.kafka.client.producer.KafkaProducer;
+import io.vertx.kafka.client.producer.KafkaProducerRecord;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.junit.After;
 import org.junit.Before;
@@ -19,14 +16,11 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
-
-import java.util.ArrayList;
-import java.util.Collections;
+import org.testcontainers.kafka.KafkaContainer;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import static java.lang.String.format;
-import static net.mguenther.kafka.junit.EmbeddedKafkaCluster.provisionWith;
 import static org.folio.kafka.KafkaConfig.KAFKA_CONSUMER_MAX_POLL_RECORDS_CONFIG;
 import static org.folio.kafka.KafkaTopicNameHelper.getDefaultNameSpace;
 import static org.folio.okapi.common.XOkapiHeaders.REQUEST_ID;
@@ -47,28 +41,37 @@ public class KafkaConsumerWrapperTest {
   @Rule
   public TestName testName = new TestName();
 
+  @Rule
+  public KafkaContainer kafka = new KafkaContainer("apache/kafka-native:3.8.0")
+      .withStartupAttempts(3);
+
   private Vertx vertx = Vertx.vertx();
-  private EmbeddedKafkaCluster kafkaCluster;
   private KafkaConfig kafkaConfig;
   private KafkaAdminClient kafkaAdminClient;
+  private KafkaProducer<String,String> producer;
 
   @Before
   public void setUp() {
-    kafkaCluster = provisionWith(EmbeddedKafkaClusterConfig.defaultClusterConfig());
-    kafkaCluster.start();
-    String[] hostAndPort = kafkaCluster.getBrokerList().split(":");
     kafkaConfig = KafkaConfig.builder()
-      .kafkaHost(hostAndPort[0])
-      .kafkaPort(hostAndPort[1])
+      .kafkaHost(kafka.getHost())
+      .kafkaPort(kafka.getFirstMappedPort() + "")
       .build();
 
     kafkaAdminClient = KafkaAdminClient.create(vertx, Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.getKafkaUrl()));
+
+    Map<String,String> config = Map.of(
+        "bootstrap.servers", kafka.getHost() + ":" + kafka.getFirstMappedPort(),
+        "key.serializer", "org.apache.kafka.common.serialization.StringSerializer",
+        "value.serializer", "org.apache.kafka.common.serialization.StringSerializer",
+        "acks", "1");
+    producer = KafkaProducer.create(vertx, config);
   }
 
   @After
   public void tearDown(TestContext testContext) {
-    kafkaAdminClient.close().onComplete(testContext.asyncAssertSuccess());
-    kafkaCluster.close();
+    kafkaAdminClient.close()
+    .onComplete(x -> producer.close())
+    .onComplete(testContext.asyncAssertSuccess());
   }
 
   @Test
@@ -123,7 +126,6 @@ public class KafkaConsumerWrapperTest {
     Async async = testContext.async();
     int loadLimit = 5;
     int recordsAmountToSend = 7;
-    String expectedLastRecordKey = String.valueOf(recordsAmountToSend);
     System.setProperty(KAFKA_CONSUMER_MAX_POLL_RECORDS_CONFIG, "2");
 
     SubscriptionDefinition subscriptionDefinition = KafkaTopicNameHelper.createSubscriptionDefinition(KAFKA_ENV, getDefaultNameSpace(), eventType());
@@ -138,31 +140,24 @@ public class KafkaConsumerWrapperTest {
     KafkaConsumerWrapper<String, String> kafkaConsumerWrapper = kafkaConsumerWrapperBuilder.build();
 
     String topicName = KafkaTopicNameHelper.formatTopicName(KAFKA_ENV, getDefaultNameSpace(), TENANT_ID, eventType());
-    List<Promise<String>> promises = new ArrayList<>();
     AtomicInteger recordCounter = new AtomicInteger(0);
 
-    Future<Void> startFuture = kafkaConsumerWrapper.start(record -> {
-      if (recordCounter.incrementAndGet() <= loadLimit) {
-        // returns uncompleted futures to keep records in progress and trigger consumer pause
-        Promise<String> promise = Promise.promise();
-        promises.add(promise);
-        return promise.future();
-      } else if (recordCounter.get() == loadLimit + 1) {
-        // complete previously postponed records to resume consumer
-        promises.forEach(p -> p.complete(null));
-        return Future.succeededFuture(record.key());
-      } else {
-        testContext.assertEquals(expectedLastRecordKey, record.key());
-        async.complete();
-        return Future.succeededFuture(record.key());
-      }
-    }, MODULE_NAME);
+    Future<Void> future = Future.succeededFuture();
+    for (int i = 1; i <= recordsAmountToSend; i++) {
+      // use same key to keep order
+      var sendRecord = sendRecord("key", format("test_payload-%s", i), topicName);
+      future = future.compose(x -> sendRecord);
+    }
+    // create back pressure by waiting until all records have been sent before starting the consumer
 
-    return startFuture.onComplete(v -> {
-      for (int i = 1; i <= recordsAmountToSend; i++) {
-        sendRecord(String.valueOf(i), format("test_payload-%s", i), topicName, testContext);
+    return future.compose(x -> kafkaConsumerWrapper.start(r -> {
+      var i = recordCounter.incrementAndGet();
+      testContext.assertEquals(format("test_payload-%s", i), r.value());
+      if (i == loadLimit + 2) {
+        async.complete();
       }
-    });
+      return Future.succeededFuture(r.key());
+    }, MODULE_NAME));
   }
 
   @Test
@@ -263,11 +258,11 @@ public class KafkaConsumerWrapperTest {
       .build();
 
     kafkaConsumerWrapper
-      .start(record -> {
-        async.complete();
+      .start(r -> {
         return Future.failedFuture("test error msg");
       }, MODULE_NAME)
-      .onComplete(v -> sendRecord("1", "test_payload", topicName, testContext));
+      .eventually(() -> sendRecord("1", "test_payload", topicName))
+      .onComplete(x -> async.complete());
 
     async.await();
     verify(recordErrorHandler, after(500)).handle(any(Throwable.class), any(KafkaConsumerRecord.class));
@@ -280,19 +275,14 @@ public class KafkaConsumerWrapperTest {
     return testName.getMethodName();
   }
 
-  private void sendRecord(String key, String recordPayload, String topicName, TestContext testContext) {
-    try {
-      KeyValue<String, String> kafkaRecord = new KeyValue<>(String.valueOf(key), recordPayload);
-      kafkaRecord.addHeader(TENANT, TENANT_ID.getBytes());
-      kafkaRecord.addHeader(REQUEST_ID, "request-id".getBytes());
-      kafkaRecord.addHeader(USER_ID, "user-id".getBytes());
-      SendKeyValues<String, String> request = SendKeyValues.to(topicName, Collections.singletonList(kafkaRecord))
-        .useDefaults();
+  private Future<Void> sendRecord(String key, String recordPayload, String topicName) {
+    KafkaProducerRecord<String,String> kafkaRecord =
+        KafkaProducerRecord.create(topicName, String.valueOf(key), recordPayload);
+    kafkaRecord.addHeader(TENANT, TENANT_ID);
+    kafkaRecord.addHeader(REQUEST_ID, "request-id");
+    kafkaRecord.addHeader(USER_ID, "user-id");
 
-      kafkaCluster.send(request);
-    } catch (InterruptedException e) {
-      testContext.fail(e);
-    }
+    return producer.send(kafkaRecord).mapEmpty();
   }
 
   private Future<Void> awaitMembersSize(String groupId, int expectedSize) {

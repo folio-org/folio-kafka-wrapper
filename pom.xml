@@ -16,12 +16,10 @@
   </licenses>
 
   <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <junit.version>4.13.2</junit.version>
-    <lombok.version>1.18.30</lombok.version>
-    <commons-lang3.version>3.12.0</commons-lang3.version>
-    <kafkaclients.version>3.3.2</kafkaclients.version>
-    <kafkajunit.version>3.3.0</kafkajunit.version>
-    <sonar.exclusions>**/org/folio/kafka/SpringKafkaProperties.java</sonar.exclusions>
+    <lombok.version>1.18.36</lombok.version>
+    <commons-lang3.version>3.17.0</commons-lang3.version>
   </properties>
 
   <repositories>
@@ -35,9 +33,16 @@
   <dependencyManagement>
     <dependencies>
       <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-bom</artifactId>
+        <version>2.24.3</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
         <groupId>io.vertx</groupId>
         <artifactId>vertx-stack-depchain</artifactId>
-        <version>4.3.7</version>
+        <version>4.5.13</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -61,21 +66,12 @@
           <artifactId>jackson-module-scala_2.12</artifactId>
           <groupId>com.fasterxml.jackson.module</groupId>
         </exclusion>
-        <exclusion>
-          <groupId>org.apache.kafka</groupId>
-          <artifactId>kafka-clients</artifactId>
-        </exclusion>
       </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.kafka</groupId>
-      <artifactId>kafka-clients</artifactId>
-      <version>${kafkaclients.version}</version>
     </dependency>
     <dependency>
       <groupId>org.folio.okapi</groupId>
       <artifactId>okapi-common</artifactId>
-      <version>4.14.8</version>
+      <version>6.2.0</version>
     </dependency>
     <dependency>
       <groupId>org.projectlombok</groupId>
@@ -90,19 +86,21 @@
     </dependency>
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-core</artifactId>
-      <version>2.19.0</version>
+      <artifactId>log4j-api</artifactId>
     </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>${junit.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>net.mguenther.kafka</groupId>
-      <artifactId>kafka-junit</artifactId>
-      <version>${kafkajunit.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -111,15 +109,15 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-inline</artifactId>
-      <version>5.2.0</version>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>kafka</artifactId>
+      <version>1.20.6</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>net.bytebuddy</groupId>
-      <artifactId>byte-buddy</artifactId>
-      <version>1.17.1</version>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>5.16.0</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -142,7 +140,7 @@
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.10.1</version>
+        <version>3.14.0</version>
         <configuration>
           <release>21</release>
           <encoding>UTF-8</encoding>
@@ -155,7 +153,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>2.22.2</version>
+        <version>3.5.2</version>
         <configuration>
           <useSystemClassLoader>false</useSystemClassLoader>
         </configuration>
@@ -164,7 +162,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>3.4.0</version>
+        <version>3.6.0</version>
         <executions>
           <execution>
             <phase>package</phase>
@@ -182,7 +180,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-release-plugin</artifactId>
-        <version>2.5.3</version>
+        <version>3.1.1</version>
         <configuration>
           <preparationGoals>clean verify</preparationGoals>
           <tagNameFormat>v@{project.version}</tagNameFormat>
@@ -193,7 +191,7 @@
 
       <plugin>
         <artifactId>maven-source-plugin</artifactId>
-        <version>3.2.1</version>
+        <version>3.3.1</version>
         <executions>
           <execution>
             <id>attach-sources</id>
@@ -206,7 +204,7 @@
 
       <plugin>
         <artifactId>maven-javadoc-plugin</artifactId>
-        <version>3.4.1</version>
+        <version>3.22.3</version>
         <executions>
           <execution>
             <id>attach-javadocs</id>
@@ -220,7 +218,7 @@
 
       <plugin>
         <artifactId>maven-deploy-plugin</artifactId>
-        <version>3.0.0</version>
+        <version>3.1.4</version>
         <executions>
           <execution>
             <id>deploy</id>
