@@ -1,3 +1,6 @@
+## 2025-03-12 v3.3.1
+* [KAFKAWRAP-63](https://folio-org.atlassian.net/browse/KAFKAWRAP-63) Upgrade dependencies
+
 ## 2025-03-07 v3.3.0
 * [KAFKAWRAP-61](https://folio-org.atlassian.net/browse/KAFKAWRAP-61) Update to folio-kafka-wrapper-util Java 21
 
