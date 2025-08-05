@@ -65,6 +65,8 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
 
   private KafkaConsumer<K, V> kafkaConsumer;
 
+  private String groupInstanceId;
+
   public int getLoadLimit() {
     return loadLimit;
   }
@@ -76,7 +78,8 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
 
   @Builder
   private KafkaConsumerWrapper(Vertx vertx, Context context, KafkaConfig kafkaConfig, SubscriptionDefinition subscriptionDefinition, Boolean addToGlobalLoad,
-                               GlobalLoadSensor globalLoadSensor, ProcessRecordErrorHandler<K, V> processRecordErrorHandler, BackPressureGauge<Integer, Integer, Integer> backPressureGauge, int loadLimit) {
+                               GlobalLoadSensor globalLoadSensor, ProcessRecordErrorHandler<K, V> processRecordErrorHandler, BackPressureGauge<Integer, Integer, Integer> backPressureGauge, int loadLimit,
+                               String groupInstanceId) {
     this.vertx = vertx;
     this.context = context;
     this.kafkaConfig = kafkaConfig;
@@ -84,6 +87,7 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
     this.globalLoadSensor = globalLoadSensor;
     this.shouldAddToGlobalLoad = addToGlobalLoad != null ? addToGlobalLoad : true;
     this.processRecordErrorHandler = processRecordErrorHandler;
+    this.groupInstanceId  = groupInstanceId;
     this.backPressureGauge = backPressureGauge != null ?
       backPressureGauge :
       (g, l, t) -> l > 0 && l > t; // Just the simplest gauge - if the local load is greater than the threshold and above zero
@@ -117,6 +121,10 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
 
     Map<String, String> consumerProps = kafkaConfig.getConsumerProps();
     consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, KafkaTopicNameHelper.formatGroupName(subscriptionDefinition.getEventType(), moduleName));
+
+    if (groupInstanceId != null) {
+      consumerProps.put(ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, groupInstanceId);
+    }
 
     kafkaConsumer = KafkaConsumer.create(vertx, consumerProps);
 
