@@ -32,6 +32,12 @@ public class KafkaConfig {
   public static final String KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS_CONFIG = "kafka.consumer.max.poll.interval.ms";
   public static final String KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS_CONFIG_DEFAULT = "600000";
 
+  public static final String KAFKA_CONSUMER_SESSION_TIMOUT_MS_CONFIG = "kafka.consumer.session.timeout.ms";
+  public static final String KAFKA_CONSUMER_SESSION_TIMOUT_MS_CONFIG_DEFAULT = "45000";
+
+  public static final String KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS_CONFIG = "kafka.consumer.heartbeat.interval.ms";
+  public static final String KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS_CONFIG_DEFAULT = "3000";
+
   public static final String KAFKA_PRODUCER_COMPRESSION_TYPE_CONFIG = "kafka.producer.compression.type";
   public static final String KAFKA_PRODUCER_COMPRESSION_TYPE_CONFIG_DEFAULT = "gzip";
 
@@ -143,6 +149,10 @@ public class KafkaConfig {
       List.of(KAFKA_CONSUMER_AUTO_OFFSET_RESET_CONFIG, SpringKafkaProperties.KAFKA_CONSUMER_AUTO_OFFSET_RESET), KAFKA_CONSUMER_AUTO_OFFSET_RESET_CONFIG_DEFAULT));
     consumerProps.put(ConsumerConfig.METADATA_MAX_AGE_CONFIG, SimpleConfigurationReader.getValue(
       List.of(KAFKA_CONSUMER_METADATA_MAX_AGE_CONFIG, SpringKafkaProperties.KAFKA_CONSUMER_METADATA_MAX_AGE), KAFKA_CONSUMER_METADATA_MAX_AGE_CONFIG_DEFAULT));
+    consumerProps.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, SimpleConfigurationReader.getValue(
+      List.of(KAFKA_CONSUMER_SESSION_TIMOUT_MS_CONFIG, SpringKafkaProperties.KAFKA_CONSUMER_SESSION_TIMEOUT_MS), KAFKA_CONSUMER_SESSION_TIMOUT_MS_CONFIG_DEFAULT));
+    consumerProps.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, SimpleConfigurationReader.getValue(
+      List.of(KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS_CONFIG, SpringKafkaProperties.KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS_CONFIG), KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS_CONFIG_DEFAULT));
     ensureSecurityProps(consumerProps);
     return consumerProps;
   }

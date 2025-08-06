@@ -10,6 +10,10 @@ public final class SpringKafkaProperties {
 
   public static final String KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS = "spring.kafka.consumer.properties.max.poll.interval.ms";
 
+  public static final String KAFKA_CONSUMER_SESSION_TIMEOUT_MS = "spring.kafka.consumer.properties.session.timeout.ms";
+
+  public static final String KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS_CONFIG = "spring.kafka.consumer.properties.heartbeat.interval.ms";
+
   public static final String KAFKA_SECURITY_PROTOCOL = "spring.kafka.security.protocol";
 
   public static final String KAFKA_PRODUCER_COMPRESSION_TYPE = "spring.kafka.producer.compression-type";
