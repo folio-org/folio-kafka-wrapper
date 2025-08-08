@@ -1,3 +1,6 @@
+## 2025-xx-xx 3.4.0-SNAPSHOT
+* [KAFKAWRAP-66](https://issues.folio.org/browse/KAFKAWRAP-66) Provide parameters for configuring group.instance.id and session timeout
+
 ## 2025-03-07 v3.3.0
 * [KAFKAWRAP-61](https://folio-org.atlassian.net/browse/KAFKAWRAP-61) Update to folio-kafka-wrapper-util Java 21
 
