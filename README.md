@@ -62,6 +62,36 @@ KafkaConsumerWrapper<String, String> consumerWrapper = KafkaConsumerWrapper.<Str
         .build();
 consumerWrapper.start(getHandler(), "mod-business-logic-1.2.4");
 ```
+
+Creating consumer wrapper over static consumer (when [group.instance.id](https://kafka.apache.org/documentation/#consumerconfigs_group.instance.id) is set)  
+Declaring static consumer using builder method:
+```java
+KafkaConsumerWrapper<String, String> consumerWrapper = KafkaConsumerWrapper.<String, String>builder()
+        .context(context)
+        .vertx(vertx)
+        .kafkaConfig(kafkaConfig)
+        .loadLimit(loadLimit)
+        .globalLoadSensor(globalLoadSensor)
+        .subscriptionDefinition(subscriptionDefinition)
+        .processRecordErrorHandler(getErrorHandler())
+        .backPressureGauge(getBackPressureGauge())
+        .groupInstanceId(groupInstanceId)
+        .build();
+```
+Declaring static consumer using setter:
+```java
+KafkaConsumerWrapper<String, String> consumerWrapper = KafkaConsumerWrapper.<String, String>builder()
+        .context(context)
+        .vertx(vertx)
+        .kafkaConfig(kafkaConfig)
+        .loadLimit(loadLimit)
+        .globalLoadSensor(globalLoadSensor)
+        .subscriptionDefinition(subscriptionDefinition)
+        .processRecordErrorHandler(getErrorHandler())
+        .backPressureGauge(getBackPressureGauge())
+        .build();
+consumerWrapper.setGroupInstanceId(groupInstanceId);
+```
 ## Environment Variables
 * **KAFKA_PRODUCER_TENANT_COLLECTION**: Set to a value matching [A-Z][A-Z0-9]{0,30} .
 This will enable messages to be produced to a tenant collection topic with the "tenantId"
