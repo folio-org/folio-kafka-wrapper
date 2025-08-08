@@ -76,6 +76,10 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
     this.loadBottomGreenLine = loadLimit / 2;
   }
 
+  public void setGroupInstanceId(String groupInstanceId) {
+    this.groupInstanceId = groupInstanceId;
+  }
+
   @Builder
   private KafkaConsumerWrapper(Vertx vertx, Context context, KafkaConfig kafkaConfig, SubscriptionDefinition subscriptionDefinition, Boolean addToGlobalLoad,
                                GlobalLoadSensor globalLoadSensor, ProcessRecordErrorHandler<K, V> processRecordErrorHandler, BackPressureGauge<Integer, Integer, Integer> backPressureGauge, int loadLimit,
