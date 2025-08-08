@@ -93,7 +93,7 @@ public class KafkaConsumerWrapperTest {
     kafkaConsumerWrapper.pause();
     testContext.assertTrue(kafkaConsumerWrapper.isConsumerPaused());
     kafkaConsumerWrapper.fetch(2);
-    testContext.assertFalse(kafkaConsumerWrapper.isConsumerPaused());;
+    testContext.assertFalse(kafkaConsumerWrapper.isConsumerPaused());
 
   }
 
@@ -276,6 +276,33 @@ public class KafkaConsumerWrapperTest {
 
     async.await();
     verify(recordErrorHandler, after(500)).handle(any(Throwable.class), any(KafkaConsumerRecord.class));
+  }
+
+  @Test
+  public void shouldThrowExceptionOnStartCallIfGroupInstanceIdIsBlankString(TestContext testContext) {
+    int loadLimit = 5;
+    String emptyStringGroupInstanceId = "";
+    String blankStringGroupInstanceId = " ";
+    SubscriptionDefinition subscriptionDefinition =
+      KafkaTopicNameHelper.createSubscriptionDefinition(KAFKA_ENV, getDefaultNameSpace(), eventType());
+    KafkaConsumerWrapper.KafkaConsumerWrapperBuilder<String, String> consumerWrapperBuilder =
+      KafkaConsumerWrapper.<String, String>builder()
+        .context(vertx.getOrCreateContext())
+        .vertx(vertx)
+        .kafkaConfig(kafkaConfig)
+        .loadLimit(loadLimit)
+        .globalLoadSensor(new GlobalLoadSensor.GlobalLoadSensorNA())
+        .subscriptionDefinition(subscriptionDefinition);
+
+    consumerWrapperBuilder.groupInstanceId(emptyStringGroupInstanceId)
+      .build()
+      .start(kafkaRecord -> Future.succeededFuture(kafkaRecord.key()), MODULE_NAME)
+      .onComplete(testContext.asyncAssertFailure());
+
+    consumerWrapperBuilder.groupInstanceId(blankStringGroupInstanceId)
+      .build()
+      .start(kafkaRecord -> Future.succeededFuture(kafkaRecord.key()), MODULE_NAME)
+      .onComplete(testContext.asyncAssertFailure());
   }
 
   /**

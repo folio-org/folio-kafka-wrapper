@@ -1,3 +1,6 @@
+## 2025-03-12 v3.3.2
+* [KAFKAWRAP-66](https://issues.folio.org/browse/KAFKAWRAP-66) Provide parameters for configuring group.instance.id and session timeout
+
 ## 2025-03-12 v3.3.1
 * [KAFKAWRAP-63](https://folio-org.atlassian.net/browse/KAFKAWRAP-63) Upgrade dependencies
 
