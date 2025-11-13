@@ -1,22 +1,21 @@
 package org.folio.kafka;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
 import io.vertx.core.MultiMap;
 import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.kafka.client.producer.KafkaHeader;
-import org.junit.Test;
-
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
-import static org.hamcrest.CoreMatchers.hasItem;
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class KafkaHeaderUtilsTest {
 
   @Test
   public void shouldReturnDistinctValuesInListWhenThereAreDuplicateElements() {
-    MultiMap headers = new HeadersMultiMap();
+    MultiMap headers = HeadersMultiMap.caseInsensitive();
     headers.add("x-okapi-request-method", "POST");
     headers.add("x-okapi-request-method", "POST");
     List<KafkaHeader> kafkaHeaders = KafkaHeaderUtils.kafkaHeadersFromMultiMap(headers);
