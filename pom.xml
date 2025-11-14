@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>org.folio</groupId>
   <artifactId>folio-kafka-wrapper</artifactId>
-  <version>3.4.0-SNAPSHOT</version>
+  <version>4.0.0-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>folio-kafka-wrapper</name>
 
@@ -18,8 +19,13 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <junit.version>4.13.2</junit.version>
-    <lombok.version>1.18.36</lombok.version>
-    <commons-lang3.version>3.17.0</commons-lang3.version>
+    <lombok.version>1.18.42</lombok.version>
+    <commons-lang3.version>3.19.0</commons-lang3.version>
+    <log4j.version>2.25.2</log4j.version>
+    <vertx.version>5.0.5</vertx.version>
+    <okapi-common.version>7.0.0</okapi-common.version>
+    <testcontainers.version>1.21.3</testcontainers.version>
+    <mockito.version>5.20.0</mockito.version>
   </properties>
 
   <repositories>
@@ -35,14 +41,14 @@
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-bom</artifactId>
-        <version>2.24.3</version>
+        <version>${log4j.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
       <dependency>
         <groupId>io.vertx</groupId>
         <artifactId>vertx-stack-depchain</artifactId>
-        <version>4.5.13</version>
+        <version>${vertx.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -71,7 +77,7 @@
     <dependency>
       <groupId>org.folio.okapi</groupId>
       <artifactId>okapi-common</artifactId>
-      <version>6.2.0</version>
+      <version>${okapi-common.version}</version>
     </dependency>
     <dependency>
       <groupId>org.projectlombok</groupId>
@@ -111,13 +117,13 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>kafka</artifactId>
-      <version>1.20.6</version>
+      <version>${testcontainers.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
-      <version>5.16.0</version>
+      <version>${mockito.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -170,7 +176,7 @@
               <goal>shade</goal>
             </goals>
             <configuration>
-              <artifactSet />
+              <artifactSet/>
               <outputFile>${project.build.directory}/${project.artifactId}-fat.jar</outputFile>
             </configuration>
           </execution>

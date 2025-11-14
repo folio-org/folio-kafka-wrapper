@@ -84,9 +84,8 @@ public class KafkaAdminClientService {
   private <T> Future<T> withKafkaAdminClient(Function<KafkaAdminClient, Future<T>> function) {
     final KafkaAdminClient kafkaAdminClient = clientFactory.get();
     return function.apply(kafkaAdminClient)
-      .eventually(x ->
-        kafkaAdminClient.close()
-          .onFailure(e -> log.error("withKafkaAdminClient:: Failed to close kafka admin client", e)));
+      .eventually(() -> kafkaAdminClient.close()
+        .onFailure(e -> log.error("withKafkaAdminClient:: Failed to close kafka admin client", e)));
   }
 
   private Stream<NewTopic> readTopics(KafkaTopic[] enumTopics, String tenant) {
