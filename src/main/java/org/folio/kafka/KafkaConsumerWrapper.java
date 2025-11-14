@@ -265,7 +265,7 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
         OffsetAndMetadata offsetAndMetadata = new OffsetAndMetadata(offset, null);
         offsets.put(topicPartition, offsetAndMetadata);
         LOGGER.debug("businessHandlerCompletionHandler:: Consumer - id: {} subscriptionPattern: {} Committing offset: {}", id, subscriptionDefinition, offset);
-        kafkaConsumer.commit()
+        kafkaConsumer.commit(offsets)
           .onSuccess(ar -> LOGGER.info("businessHandlerCompletionHandler:: Consumer - id: {} subscriptionPattern: {} Committed offset: {}", id, subscriptionDefinition, offset))
           .onFailure(throwable -> LOGGER.error("businessHandlerCompletionHandler:: Consumer - id: {} subscriptionPattern: {} Error while commit offset: {}", id, subscriptionDefinition, offset, throwable));
 
