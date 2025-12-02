@@ -48,6 +48,16 @@ public final class SpringKafkaProperties {
 
   public static final String KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM = "spring.kafka.properties.ssl.endpoint.identification.algorithm";
 
+  // SASL properties
+  public static final String KAFKA_SASL_MECHANISM = "spring.kafka.properties.sasl.mechanism";
+  public static final String KAFKA_SASL_JAAS_CONFIG = "spring.kafka.properties.sasl.jaas.config";
+
+  // OAUTHBEARER properties
+  public static final String KAFKA_SASL_OAUTHBEARER_TOKEN_ENDPOINT_URL = "spring.kafka.properties.sasl.oauthbearer.token.endpoint.url";
+  public static final String KAFKA_SASL_LOGIN_CALLBACK_HANDLER_CLASS = "spring.kafka.properties.sasl.login.callback.handler.class";
+  public static final String KAFKA_SASL_LOGIN_CONNECT_TIMEOUT_MS = "spring.kafka.properties.sasl.login.connect.timeout.ms";
+  public static final String KAFKA_SASL_LOGIN_READ_TIMEOUT_MS = "spring.kafka.properties.sasl.login.read.timeout.ms";
+
   private SpringKafkaProperties() {
     throw new UnsupportedOperationException();
   }

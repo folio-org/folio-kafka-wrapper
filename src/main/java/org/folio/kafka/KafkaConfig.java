@@ -6,6 +6,7 @@ import lombok.ToString;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.config.SslConfigs;
 import org.folio.kafka.interceptors.TenantIdCheckInterceptor;
 
@@ -82,6 +83,16 @@ public class KafkaConfig {
   public static final String KAFKA_SSL_KEYSTORE_TYPE_DEFAULT = "JKS";
 
   public static final String KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG = "ssl.endpoint.identification.algorithm";
+
+  // SASL Configuration
+  public static final String KAFKA_SASL_MECHANISM_CONFIG = "sasl.mechanism";
+  public static final String KAFKA_SASL_JAAS_CONFIG = "sasl.jaas.config";
+
+  // OAUTHBEARER-specific properties
+  public static final String KAFKA_SASL_OAUTHBEARER_TOKEN_ENDPOINT_URL_CONFIG = "sasl.oauthbearer.token.endpoint.url";
+  public static final String KAFKA_SASL_LOGIN_CALLBACK_HANDLER_CLASS_CONFIG = "sasl.login.callback.handler.class";
+  public static final String KAFKA_SASL_LOGIN_CONNECT_TIMEOUT_MS_CONFIG = "sasl.login.connect.timeout.ms";
+  public static final String KAFKA_SASL_LOGIN_READ_TIMEOUT_MS_CONFIG = "sasl.login.read.timeout.ms";
 
   private final String kafkaHost;
   private final String kafkaPort;
@@ -186,6 +197,44 @@ public class KafkaConfig {
       List.of(KAFKA_SSL_KEYSTORE_TYPE_CONFIG, SpringKafkaProperties.KAFKA_SSL_KEYSTORE_TYPE), KAFKA_SSL_KEYSTORE_TYPE_DEFAULT));
     clientProps.put(SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG, SimpleConfigurationReader.getValue(
       List.of(KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG, SpringKafkaProperties.KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM), null));
+
+    // SASL configuration
+    String saslMechanism = SimpleConfigurationReader.getValue(
+      List.of(KAFKA_SASL_MECHANISM_CONFIG, SpringKafkaProperties.KAFKA_SASL_MECHANISM), null);
+    if (saslMechanism != null) {
+      clientProps.put(SaslConfigs.SASL_MECHANISM, saslMechanism);
+    }
+
+    String saslJaasConfig = SimpleConfigurationReader.getValue(
+      List.of(KAFKA_SASL_JAAS_CONFIG, SpringKafkaProperties.KAFKA_SASL_JAAS_CONFIG), null);
+    if (saslJaasConfig != null) {
+      clientProps.put(SaslConfigs.SASL_JAAS_CONFIG, saslJaasConfig);
+    }
+
+    // OAUTHBEARER-specific properties
+    String oauthTokenEndpoint = SimpleConfigurationReader.getValue(
+      List.of(KAFKA_SASL_OAUTHBEARER_TOKEN_ENDPOINT_URL_CONFIG, SpringKafkaProperties.KAFKA_SASL_OAUTHBEARER_TOKEN_ENDPOINT_URL), null);
+    if (oauthTokenEndpoint != null) {
+      clientProps.put(SaslConfigs.SASL_OAUTHBEARER_TOKEN_ENDPOINT_URL, oauthTokenEndpoint);
+    }
+
+    String loginCallbackHandler = SimpleConfigurationReader.getValue(
+      List.of(KAFKA_SASL_LOGIN_CALLBACK_HANDLER_CLASS_CONFIG, SpringKafkaProperties.KAFKA_SASL_LOGIN_CALLBACK_HANDLER_CLASS), null);
+    if (loginCallbackHandler != null) {
+      clientProps.put(SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS, loginCallbackHandler);
+    }
+
+    String loginConnectTimeout = SimpleConfigurationReader.getValue(
+      List.of(KAFKA_SASL_LOGIN_CONNECT_TIMEOUT_MS_CONFIG, SpringKafkaProperties.KAFKA_SASL_LOGIN_CONNECT_TIMEOUT_MS), null);
+    if (loginConnectTimeout != null) {
+      clientProps.put(SaslConfigs.SASL_LOGIN_CONNECT_TIMEOUT_MS, loginConnectTimeout);
+    }
+
+    String loginReadTimeout = SimpleConfigurationReader.getValue(
+      List.of(KAFKA_SASL_LOGIN_READ_TIMEOUT_MS_CONFIG, SpringKafkaProperties.KAFKA_SASL_LOGIN_READ_TIMEOUT_MS), null);
+    if (loginReadTimeout != null) {
+      clientProps.put(SaslConfigs.SASL_LOGIN_READ_TIMEOUT_MS, loginReadTimeout);
+    }
   }
 
 }
