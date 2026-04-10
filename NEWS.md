@@ -1,6 +1,7 @@
-## 2025-xx-xx 4.0.0-SNAPSHOT
-* [KAFKAWRAP-68](https://issues.folio.org/browse/KAFKAWRAP-68) Upgrade to Vert.X 5.0.x
+## 2026-04-10 4.0.0
+* Fix maven-javadoc-plugin version
 * [KAFKAWRAP-66](https://issues.folio.org/browse/KAFKAWRAP-66) Provide parameters for configuring group.instance.id and session timeout
+* [KAFKAWRAP-68](https://issues.folio.org/browse/KAFKAWRAP-68) Upgrade to Vert.X 5.0.x
 
 ## 2025-03-07 v3.3.0
 * [KAFKAWRAP-61](https://folio-org.atlassian.net/browse/KAFKAWRAP-61) Update to folio-kafka-wrapper-util Java 21
