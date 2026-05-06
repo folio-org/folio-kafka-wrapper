@@ -1,3 +1,6 @@
+## xxxx-xx-xx vx.x.x
+* [KAFKAWRAP-73](https://issues.folio.org/browse/KAFKAWRAP-73) Upgrade Vert.x to 5.0.12 to use Kafka 4.2
+
 ## 2026-04-10 4.0.0
 * Fix maven-javadoc-plugin version
 * [KAFKAWRAP-66](https://issues.folio.org/browse/KAFKAWRAP-66) Provide parameters for configuring group.instance.id and session timeout
