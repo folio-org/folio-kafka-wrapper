@@ -11,6 +11,7 @@ import io.vertx.kafka.client.consumer.KafkaConsumerRecord;
 import io.vertx.kafka.client.producer.KafkaProducer;
 import io.vertx.kafka.client.producer.KafkaProducerRecord;
 import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.common.errors.GroupIdNotFoundException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -28,7 +29,7 @@ import static org.folio.okapi.common.XOkapiHeaders.REQUEST_ID;
 import static org.folio.okapi.common.XOkapiHeaders.TENANT;
 import static org.folio.okapi.common.XOkapiHeaders.USER_ID;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.after;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -42,8 +43,7 @@ public class KafkaConsumerWrapperTest {
   @Rule
   public TestName testName = new TestName();
 
-  @Rule
-  public KafkaContainer kafka = new KafkaContainer("apache/kafka-native:3.8.0")
+  public KafkaContainer kafka = new KafkaContainer("apache/kafka-native:4.2.0")
       .withStartupAttempts(3);
 
   private Vertx vertx = Vertx.vertx();
@@ -53,6 +53,8 @@ public class KafkaConsumerWrapperTest {
 
   @Before
   public void setUp() {
+    kafka.start();
+
     kafkaConfig = KafkaConfig.builder()
       .kafkaHost(kafka.getHost())
       .kafkaPort(kafka.getFirstMappedPort() + "")
@@ -72,7 +74,7 @@ public class KafkaConsumerWrapperTest {
   public void tearDown(TestContext testContext) {
     kafkaAdminClient.close()
     .onComplete(x -> producer.close())
-    .onComplete(testContext.asyncAssertSuccess());
+    .onComplete(testContext.asyncAssertSuccess(v -> kafka.stop()));
   }
 
   @Test
@@ -256,6 +258,10 @@ public class KafkaConsumerWrapperTest {
     SubscriptionDefinition subscriptionDefinition = KafkaTopicNameHelper.createSubscriptionDefinition(KAFKA_ENV, getDefaultNameSpace(), eventType());
     String topicName = KafkaTopicNameHelper.formatTopicName(KAFKA_ENV, getDefaultNameSpace(), TENANT_ID, eventType());
     ProcessRecordErrorHandler<String, String> recordErrorHandler = mock(ProcessRecordErrorHandler.class);
+    doAnswer(invocation -> {
+      async.complete();
+      return null;
+    }).when(recordErrorHandler).handle(any(Throwable.class), any(KafkaConsumerRecord.class));
 
     KafkaConsumerWrapper<String, String> kafkaConsumerWrapper = KafkaConsumerWrapper.<String, String>builder()
       .context(vertx.getOrCreateContext())
@@ -272,10 +278,10 @@ public class KafkaConsumerWrapperTest {
         return Future.failedFuture("test error msg");
       }, MODULE_NAME)
       .eventually(() -> sendRecord("1", "test_payload", topicName))
-      .onComplete(x -> async.complete());
+      .onComplete(testContext.asyncAssertSuccess());
 
     async.await();
-    verify(recordErrorHandler, after(500)).handle(any(Throwable.class), any(KafkaConsumerRecord.class));
+    verify(recordErrorHandler).handle(any(Throwable.class), any(KafkaConsumerRecord.class));
   }
 
   @Test
@@ -329,6 +335,23 @@ public class KafkaConsumerWrapperTest {
             return Future.succeededFuture();
           }
           return awaitMembersSize(groupId, expectedSize);
+        })
+        .recover(t -> {
+          if (isGroupNotFoundError(t)) {
+            return expectedSize == 0 ? Future.succeededFuture() : awaitMembersSize(groupId, expectedSize);
+          }
+          return Future.failedFuture(t);
         });
+  }
+
+  private boolean isGroupNotFoundError(Throwable throwable) {
+    Throwable current = throwable;
+    while (current != null) {
+      if (current instanceof GroupIdNotFoundException) {
+        return true;
+      }
+      current = current.getCause();
+    }
+    return false;
   }
 }
