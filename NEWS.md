@@ -1,5 +1,27 @@
-## xxxx-xx-xx vx.x.x
-* [KAFKAWRAP-73](https://issues.folio.org/browse/KAFKAWRAP-73) Upgrade Vert.x to 5.0.12 to use Kafka 4.2
+## v4.1.0 XXXX-XX-XX
+### Breaking changes
+
+### Features
+
+### Bug fixes
+
+### Tech Dept
+* Add a checkstyle plugin to validate code style
+* Upgrade Vert.x to 5.0.12 to use Kafka 4.2 ([KAFKAWRAP-73](https://issues.folio.org/browse/KAFKAWRAP-73))
+
+### Dependencies
+* Bump `log4j-bom` from `2.25.2` to `2.26.1`
+* Bump `vertx-stack-depchain` from `5.0.12` to `5.1.5`
+* Bump `okapi-common` from `7.0.0` to `7.0.5`
+* Bump `lombok` from `1.18.42` to `1.18.46`
+* Bump `commons-lang3` from `3.19.0` to `3.20.0`
+* Bump `mockito-core` from `5.20.0` to `5.23.0`
+* Bump `maven-compiler-plugin` from `3.14.0` to `3.15.0`
+* Bump `maven-surefire-plugin` from `3.5.2` to `3.5.6`
+* Bump `maven-release-plugin` from `3.1.1` to `3.3.1`
+* Bump `maven-source-plugin` from `3.3.1` to `3.4.0`
+* Bump `maven-javadoc-plugin` from `3.11.2` to `3.12.0`
+* Remove `maven-shade-plugin`
 
 ## 2026-04-10 4.0.0
 * Fix maven-javadoc-plugin version

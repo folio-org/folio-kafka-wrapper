@@ -1,5 +1,13 @@
 package org.folio.kafka.services;
 
+import static io.vertx.kafka.admin.KafkaAdminClient.create;
+import static org.apache.logging.log4j.LogManager.getLogger;
+
+import io.vertx.core.Context;
+import io.vertx.core.Future;
+import io.vertx.core.Vertx;
+import io.vertx.kafka.admin.KafkaAdminClient;
+import io.vertx.kafka.admin.NewTopic;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -12,14 +20,6 @@ import java.util.stream.Stream;
 import org.apache.logging.log4j.Logger;
 import org.folio.kafka.KafkaConfig;
 import org.folio.kafka.KafkaTopicNameHelper;
-import io.vertx.core.Context;
-import io.vertx.core.Future;
-import io.vertx.core.Vertx;
-import io.vertx.kafka.admin.KafkaAdminClient;
-import io.vertx.kafka.admin.NewTopic;
-
-import static io.vertx.kafka.admin.KafkaAdminClient.create;
-import static org.apache.logging.log4j.LogManager.getLogger;
 
 public class KafkaAdminClientService {
 
@@ -40,7 +40,7 @@ public class KafkaAdminClientService {
     final List<NewTopic> topics = readTopics(enumTopics, tenantId)
       .toList();
 
-    return withKafkaAdminClient(adminClient -> createKafkaTopics(1, topics, adminClient))
+    return withKafkaAdminClient(adminClient -> performTopicCreation(1, topics, adminClient))
       .onSuccess(result -> log.info("createKafkaTopics:: Topics created successfully"))
       .onFailure(cause -> log.error("createKafkaTopics:: Unable to create topics", cause));
   }
@@ -58,7 +58,7 @@ public class KafkaAdminClientService {
       .onFailure(e -> log.error("deleteKafkaTopics:: Unable to delete topics", e));
   }
 
-  private Future<Void> createKafkaTopics(int attempt, List<NewTopic> topics, KafkaAdminClient kafkaAdminClient) {
+  private Future<Void> performTopicCreation(int attempt, List<NewTopic> topics, KafkaAdminClient kafkaAdminClient) {
     return kafkaAdminClient.listTopics()
       .compose(existingTopics -> {
         final List<NewTopic> newTopics = new ArrayList<>(topics);
@@ -77,7 +77,7 @@ public class KafkaAdminClientService {
           return Future.failedFuture(e);
         }
         log.info("createKafkaTopics:: Create topic attempt {} failed, sleeping and trying next attempt.", attempt);
-        return sleep().compose(x -> createKafkaTopics(attempt + 1, topics, kafkaAdminClient));
+        return sleep().compose(x -> performTopicCreation(attempt + 1, topics, kafkaAdminClient));
       });
   }
 

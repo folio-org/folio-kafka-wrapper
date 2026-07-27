@@ -3,12 +3,12 @@ package org.folio.kafka;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * This is the simplest solution to track the load
+ * This is the simplest solution to track the load.
  */
 
-
 public class GlobalLoadSensor {
-  private AtomicInteger index;
+
+  private final AtomicInteger index;
 
   public GlobalLoadSensor() {
     index = new AtomicInteger();
@@ -30,7 +30,7 @@ public class GlobalLoadSensor {
     return index.get();
   }
 
-
+  @SuppressWarnings("checkstyle:AbbreviationAsWordInName")
   public static class GlobalLoadSensorNA extends GlobalLoadSensor {
     @Override
     public int increment() {
@@ -47,5 +47,4 @@ public class GlobalLoadSensor {
       return -1;
     }
   }
-
 }

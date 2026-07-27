@@ -1,25 +1,25 @@
 package org.folio.kafka.services;
 
-import org.folio.kafka.KafkaConfig;
-
 import static java.lang.String.join;
 import static org.folio.kafka.KafkaTopicNameHelper.formatTopicName;
 import static org.folio.kafka.services.KafkaEnvironmentProperties.environment;
 
+import org.folio.kafka.KafkaConfig;
+
 public interface KafkaTopic {
 
   /**
-   * Returns module name
+   * Returns module name.
    */
   String moduleName();
 
   /**
-   * Returns topic name
+   * Returns topic name.
    */
   String topicName();
 
   /**
-   * Returns num partitions
+   * Returns num partitions.
    * Default - 1
    */
   default int numPartitions() {
@@ -43,7 +43,7 @@ public interface KafkaTopic {
   }
 
   /**
-   * Returns full topic name. Based on environment variables and system properties
+   * Returns full topic name. Based on environment variables and system properties.
    * Order: {environment}.{tenantId}.{modulePrefix}.{topicName}
    */
   default String fullTopicName(String tenant) {
@@ -51,7 +51,7 @@ public interface KafkaTopic {
   }
 
   /**
-   * Returns full topic name. Based on kafka configuration
+   * Returns full topic name. Based on kafka configuration.
    * Order: {environment}.{tenantId}.{modulePrefix}.{topicName}
    */
   default String fullTopicName(KafkaConfig config, String tenant) {
@@ -62,7 +62,7 @@ public interface KafkaTopic {
    * Returns retention time in milliseconds for this topic's messages.
    *
    * @return {@link Integer} type value for a message's retention in milliseconds.
-   * if value is null then it means to use default value for this config
+   *   if value is null then it means to use default value for this config
    */
   default Integer messageRetentionTime() {
     return null;
@@ -72,7 +72,7 @@ public interface KafkaTopic {
    * Returns message's max size in bytes.
    *
    * @return {@link Integer} type value of message's max size in bytes.
-   * if value is null then it means to use default value for this config
+   *   if value is null then it means to use default value for this config
    */
   default Integer messageMaxSize() {
     return null;

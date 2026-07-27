@@ -1,21 +1,20 @@
 package org.folio.kafka;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.kafka.client.producer.KafkaHeader;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class KafkaHeaderUtilsTest {
+class KafkaHeaderUtilsTest {
 
   @Test
-  public void shouldReturnDistinctValuesInListWhenThereAreDuplicateElements() {
-    MultiMap headers = HeadersMultiMap.caseInsensitive();
+  void shouldReturnDistinctValuesInListWhenThereAreDuplicateElements() {
+    MultiMap headers = MultiMap.caseInsensitiveMultiMap();
     headers.add("x-okapi-request-method", "POST");
     headers.add("x-okapi-request-method", "POST");
     List<KafkaHeader> kafkaHeaders = KafkaHeaderUtils.kafkaHeadersFromMultiMap(headers);
@@ -23,7 +22,7 @@ public class KafkaHeaderUtilsTest {
   }
 
   @Test
-  public void shouldConvertMapToKafkaHeaders() {
+  void shouldConvertMapToKafkaHeaders() {
     Map<String, String> headers = Map.of(
       "x-okapi-tenant", "diku",
       "x-okapi-user-id", UUID.randomUUID().toString());
@@ -39,7 +38,7 @@ public class KafkaHeaderUtilsTest {
   }
 
   @Test
-  public void shouldConvertKafkaHeadersToMap() {
+  void shouldConvertKafkaHeadersToMap() {
     List<KafkaHeader> kafkaHeaders = List.of(
       KafkaHeader.header("x-okapi-tenant", "diku"),
       KafkaHeader.header("x-okapi-user-id", UUID.randomUUID().toString()));
