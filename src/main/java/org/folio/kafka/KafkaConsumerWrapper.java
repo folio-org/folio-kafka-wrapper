@@ -9,6 +9,11 @@ import io.vertx.kafka.client.common.TopicPartition;
 import io.vertx.kafka.client.consumer.KafkaConsumer;
 import io.vertx.kafka.client.consumer.KafkaConsumerRecord;
 import io.vertx.kafka.client.consumer.OffsetAndMetadata;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -21,31 +26,22 @@ import org.folio.okapi.common.XOkapiHeaders;
 import org.folio.okapi.common.logging.FolioLocal;
 import org.folio.okapi.common.logging.FolioLoggingContext;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Pattern;
-
+@SuppressWarnings("checkstyle:FinalClass")
 public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K, V>> {
 
+  public static final GlobalLoadSensor GLOBAL_SENSOR_NA = new GlobalLoadSensor.GlobalLoadSensorNA();
   private static final Logger LOGGER = LogManager.getLogger();
-
   private static final String INVALID_GROUP_INSTANCE_ID_MSG =
     "groupInstanceId must be non-empty String value. Current value is '%s'";
-
-  public static final GlobalLoadSensor GLOBAL_SENSOR_NA = new GlobalLoadSensor.GlobalLoadSensorNA();
-
-  private static final AtomicInteger indexer = new AtomicInteger();
+  private static final AtomicInteger INDEXER = new AtomicInteger();
+  private static final long PERIODIC_CHECK_INTERVAL = 3000;
 
   @Getter
-  private final int id = indexer.getAndIncrement();
+  private final int id = INDEXER.getAndIncrement();
 
   private final AtomicInteger localLoadSensor = new AtomicInteger();
 
   private final AtomicBoolean isPaused = new AtomicBoolean(false);
-
-  private final long periodicCheckInterval = 3000;
 
   private final Vertx vertx;
 
@@ -54,6 +50,12 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
   private final KafkaConfig kafkaConfig;
 
   private final SubscriptionDefinition subscriptionDefinition;
+
+  /**
+   * Common "id: X subscriptionPattern: Y" descriptor shared by log messages, computed once since id and
+   * subscriptionDefinition never change, so it can be logged without a per-call method invocation.
+   */
+  private final String consumerDescriptor;
 
   private final GlobalLoadSensor globalLoadSensor;
 
@@ -76,20 +78,25 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
   private String groupInstanceId;
 
   @Builder
-  private KafkaConsumerWrapper(Vertx vertx, Context context, KafkaConfig kafkaConfig, SubscriptionDefinition subscriptionDefinition, Boolean addToGlobalLoad,
-                               GlobalLoadSensor globalLoadSensor, ProcessRecordErrorHandler<K, V> processRecordErrorHandler, BackPressureGauge<Integer, Integer, Integer> backPressureGauge, int loadLimit,
+  private KafkaConsumerWrapper(Vertx vertx, Context context, KafkaConfig kafkaConfig,
+                               SubscriptionDefinition subscriptionDefinition, Boolean addToGlobalLoad,
+                               GlobalLoadSensor globalLoadSensor,
+                               ProcessRecordErrorHandler<K, V> processRecordErrorHandler,
+                               BackPressureGauge<Integer, Integer, Integer> backPressureGauge, int loadLimit,
                                String groupInstanceId) {
     this.vertx = vertx;
     this.context = context;
     this.kafkaConfig = kafkaConfig;
     this.subscriptionDefinition = subscriptionDefinition;
+    this.consumerDescriptor = "id: %d subscriptionPattern: %s".formatted(id, subscriptionDefinition);
     this.globalLoadSensor = globalLoadSensor;
     this.shouldAddToGlobalLoad = addToGlobalLoad != null ? addToGlobalLoad : true;
     this.processRecordErrorHandler = processRecordErrorHandler;
-    this.groupInstanceId  = groupInstanceId;
-    this.backPressureGauge = backPressureGauge != null ?
-      backPressureGauge :
-      (g, l, t) -> l > 0 && l > t; // Just the simplest gauge - if the local load is greater than the threshold and above zero
+    this.groupInstanceId = groupInstanceId;
+    this.backPressureGauge = backPressureGauge != null
+                             ? backPressureGauge
+                             // Just the simplest gauge - if the local load is greater than the threshold and above zero
+                             : (g, l, t) -> l > 0 && l > t;
     this.loadLimit = loadLimit;
     this.loadBottomGreenLine = loadLimit / 2;
   }
@@ -97,45 +104,56 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
   public Future<Void> start(AsyncRecordHandler<K, V> businessHandler, String moduleName) {
     LOGGER.debug("start:: KafkaConsumerWrapper is starting for module: {}", moduleName);
 
-    if (businessHandler == null) {
-      String failureMessage = "start:: businessHandler must be provided and can't be null.";
-      LOGGER.error(failureMessage);
-      return Future.failedFuture(failureMessage);
-    }
-
-    if (subscriptionDefinition == null || StringUtils.isBlank(subscriptionDefinition.getSubscriptionPattern())) {
-      String failureMessage = "start:: subscriptionPattern can't be null nor empty. " + subscriptionDefinition;
-      LOGGER.error(failureMessage);
-      return Future.failedFuture(failureMessage);
-    }
-
-    if (loadLimit < 1) {
-      String failureMessage = "start:: loadLimit must be greater than 0. Current value is " + loadLimit;
-      LOGGER.error(failureMessage);
-      return Future.failedFuture(failureMessage);
-    }
-
-    if (groupInstanceId != null && groupInstanceId.isBlank()) {
-      String failureMessage = INVALID_GROUP_INSTANCE_ID_MSG.formatted(groupInstanceId);
-      LOGGER.error("start:: {}", failureMessage);
-      return Future.failedFuture(failureMessage);
+    String validationFailureMessage = validateStartParameters(businessHandler);
+    if (validationFailureMessage != null) {
+      return Future.failedFuture(validationFailureMessage);
     }
 
     this.businessHandler = businessHandler;
 
     Map<String, String> consumerProps = kafkaConfig.getConsumerProps();
-    consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, KafkaTopicNameHelper.formatGroupName(subscriptionDefinition.getEventType(), moduleName));
+    consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG,
+      KafkaTopicNameHelper.formatGroupName(subscriptionDefinition.getEventType(), moduleName));
     consumerProps.put(ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, groupInstanceId);
 
     kafkaConsumer = KafkaConsumer.create(vertx, consumerProps);
 
     kafkaConsumer.handler(this);
-    kafkaConsumer.exceptionHandler(throwable -> LOGGER.error("start:: Error while KafkaConsumerWrapper is working: ", throwable));
+    kafkaConsumer.exceptionHandler(
+      throwable -> LOGGER.error("start:: Error while KafkaConsumerWrapper is working: ", throwable));
 
     Pattern pattern = Pattern.compile(subscriptionDefinition.getSubscriptionPattern());
     return kafkaConsumer.subscribe(pattern)
-      .onSuccess(ar -> LOGGER.info("start:: Consumer created - id: {} subscriptionPattern: {}", id, subscriptionDefinition))
+      .onSuccess(ar -> LOGGER.info("start:: Consumer created - {}", consumerDescriptor))
       .onFailure(throwable -> LOGGER.error("start:: Consumer creation failed", throwable));
+  }
+
+  private String validateStartParameters(AsyncRecordHandler<K, V> businessHandler) {
+    if (businessHandler == null) {
+      String failureMessage = "start:: businessHandler must be provided and can't be null.";
+      LOGGER.error(failureMessage);
+      return failureMessage;
+    }
+
+    if (subscriptionDefinition == null || StringUtils.isBlank(subscriptionDefinition.getSubscriptionPattern())) {
+      String failureMessage = "start:: subscriptionPattern can't be null nor empty. " + subscriptionDefinition;
+      LOGGER.error(failureMessage);
+      return failureMessage;
+    }
+
+    if (loadLimit < 1) {
+      String failureMessage = "start:: loadLimit must be greater than 0. Current value is " + loadLimit;
+      LOGGER.error(failureMessage);
+      return failureMessage;
+    }
+
+    if (groupInstanceId != null && groupInstanceId.isBlank()) {
+      String failureMessage = INVALID_GROUP_INSTANCE_ID_MSG.formatted(groupInstanceId);
+      LOGGER.error("start:: {}", failureMessage);
+      return failureMessage;
+    }
+
+    return null;
   }
 
   public void setLoadLimit(int loadLimit) {
@@ -192,17 +210,13 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
   public Future<Void> stop() {
     LOGGER.debug("stop:: KafkaConsumerWrapper is stopping");
     return kafkaConsumer.unsubscribe()
-      .onSuccess(ar ->
-        LOGGER.info("stop:: Consumer unsubscribed - id: {} subscriptionPattern: {}", id, subscriptionDefinition))
-      .onFailure(throwable ->
-        LOGGER.error("stop:: Consumer was not unsubscribed - id: {} subscriptionPattern: {}", id,
-          subscriptionDefinition, throwable))
+      .onSuccess(ar -> LOGGER.info("stop:: Consumer unsubscribed - {}", consumerDescriptor))
+      .onFailure(throwable -> LOGGER.error("stop:: Consumer was not unsubscribed - {}", consumerDescriptor,
+        throwable))
       .compose(x -> kafkaConsumer.close()
-        .onSuccess(ar ->
-          LOGGER.info("stop:: Consumer closed - id: {} subscriptionPattern: {}", id, subscriptionDefinition))
-        .onFailure(throwable ->
-          LOGGER.error("stop:: Consumer was not closed - id: {} subscriptionPattern: {}", id, subscriptionDefinition,
-            throwable)));
+        .onSuccess(ar -> LOGGER.info("stop:: Consumer closed - {}", consumerDescriptor))
+        .onFailure(throwable -> LOGGER.error("stop:: Consumer was not closed - {}", consumerDescriptor,
+          throwable)));
   }
 
   @Override
@@ -214,17 +228,25 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
 
     if (backPressureGauge.isThresholdExceeded(globalLoad, currentLoad, loadLimit) && !isConsumerPaused()) {
       pauseWithPeriodicCheck();
-      LOGGER.info("handle:: Consumer - id: {} subscriptionPattern: {} kafkaConsumer.pause() requested" + " currentLoad: {}, globalLoad: {}, loadLimit: {}",
-        id, subscriptionDefinition, currentLoad, globalLoad, loadLimit);
+      LOGGER.info("handle:: Consumer - {} kafkaConsumer.pause() requested currentLoad: {}, globalLoad: {}, "
+                  + "loadLimit: {}", consumerDescriptor, currentLoad, globalLoad, loadLimit);
     }
 
-    LOGGER.debug("handle:: Consumer - id: {} subscriptionPattern: {} a Record has been received. key: {} currentLoad: {} globalLoad: {}",
-      id, subscriptionDefinition, consumerRecord.key(), currentLoad, globalLoadSensor != null ? String.valueOf(globalLoadSensor.current()) : "N/A");
+    LOGGER.debug("handle:: Consumer - {} a Record has been received. key: {} currentLoad: {} globalLoad: {}",
+      consumerDescriptor, consumerRecord.key(), currentLoad,
+      globalLoadSensor != null ? String.valueOf(globalLoadSensor.current()) : "N/A");
 
-    // populate logging context
+    populateLoggingContext(consumerRecord);
+
+    businessHandler.handle(consumerRecord).onComplete(businessHandlerCompletionHandler(consumerRecord));
+  }
+
+  private void populateLoggingContext(KafkaConsumerRecord<K, V> consumerRecord) {
     consumerRecord.headers().forEach(header -> {
       String key = header.key();
-      if (key == null) return;
+      if (key == null) {
+        return;
+      }
       String value = header.value() == null ? "" : header.value().toString();
 
       if (key.equalsIgnoreCase(XOkapiHeaders.REQUEST_ID)) {
@@ -235,19 +257,17 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
         FolioLoggingContext.put(FolioLocal.USER_ID, value);
       }
     });
-
-    businessHandler.handle(consumerRecord).onComplete(businessHandlerCompletionHandler(consumerRecord));
   }
 
   /**
-   * periodically check if the consumer can be resumed
+   * Periodically check if the consumer can be resumed.
    */
   private void startPeriodicCheck() {
-    vertx.setPeriodic(periodicCheckInterval, timerId -> {
+    vertx.setPeriodic(PERIODIC_CHECK_INTERVAL, timerId -> {
       int globalLoad = getGlobalLoadSensorForMutation().current();
       int currentLoad = localLoadSensor.get();
-      LOGGER.debug("periodicCheck:: Consumer - id: {} subscriptionPattern: {} checking if consumer can resume. currentLoad: {} globalLoad: {}",
-        id, subscriptionDefinition, currentLoad, globalLoad);
+      LOGGER.debug("periodicCheck:: Consumer - {} checking if consumer can resume. currentLoad: {} globalLoad: {}",
+        consumerDescriptor, currentLoad, globalLoad);
       if (!backPressureGauge.isThresholdExceeded(globalLoad, currentLoad, loadLimit)) {
         resume();
         vertx.cancelTimer(timerId);
@@ -256,48 +276,69 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
   }
 
   private Handler<AsyncResult<K>> businessHandlerCompletionHandler(KafkaConsumerRecord<K, V> consumerRecord) {
-    LOGGER.debug("businessHandlerCompletionHandler:: Consumer - id: {} subscriptionPattern: {} Starting business completion handler, globalLoadSensor: {}", id, subscriptionDefinition, globalLoadSensor.current());
+    LOGGER.debug("businessHandlerCompletionHandler:: Consumer - {} Starting business completion handler, "
+                 + "globalLoadSensor: {}", consumerDescriptor, globalLoadSensor.current());
     return har -> {
+      long offset = consumerRecord.offset() + 1;
       try {
-        long offset = consumerRecord.offset() + 1;
-        Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>(2);
-        TopicPartition topicPartition = new TopicPartition(consumerRecord.topic(), consumerRecord.partition());
-        OffsetAndMetadata offsetAndMetadata = new OffsetAndMetadata(offset, null);
-        offsets.put(topicPartition, offsetAndMetadata);
-        LOGGER.debug("businessHandlerCompletionHandler:: Consumer - id: {} subscriptionPattern: {} Committing offset: {}", id, subscriptionDefinition, offset);
-        kafkaConsumer.commit(offsets)
-          .onSuccess(ar -> LOGGER.info("businessHandlerCompletionHandler:: Consumer - id: {} subscriptionPattern: {} Committed offset: {}", id, subscriptionDefinition, offset))
-          .onFailure(throwable -> LOGGER.error("businessHandlerCompletionHandler:: Consumer - id: {} subscriptionPattern: {} Error while commit offset: {}", id, subscriptionDefinition, offset, throwable));
-
-        if (har.failed()) {
-          if (har.cause() instanceof DuplicateEventException) {
-            LOGGER.info("businessHandlerCompletionHandler:: Duplicate event for a record - id: {} subscriptionPattern: {} offset: {} has been skipped, logging more info about it in error handler", id, subscriptionDefinition, offset);
-          } else {
-            LOGGER.error("businessHandlerCompletionHandler:: Error while processing a record - id: {} subscriptionPattern: {} offset: {}", id, subscriptionDefinition, offset, har.cause());
-          }
-          if (processRecordErrorHandler != null) {
-            LOGGER.info("businessHandlerCompletionHandler:: Starting error handler to process failures for a record - id: {} subscriptionPattern: {} offset: {} and send DI_ERROR events",
-              id, subscriptionDefinition, offset);
-            processRecordErrorHandler.handle(har.cause(), consumerRecord);
-          } else {
-            LOGGER.warn("businessHandlerCompletionHandler:: Error handler has not been implemented for subscriptionPattern: {} failures", subscriptionDefinition);
-          }
-        }
+        commitOffset(consumerRecord, offset);
+        handleBusinessResult(har, consumerRecord, offset);
       } finally {
-        int actualCurrentLoad = localLoadSensor.decrementAndGet();
-
-        int globalLoad = getGlobalLoadSensorForMutation().decrement();
-
-        if (!backPressureGauge.isThresholdExceeded(globalLoad, actualCurrentLoad, loadBottomGreenLine) && isConsumerPaused()) {
-            resume();
-            LOGGER.info("businessHandlerCompletionHandler:: Consumer - id: {} subscriptionPattern: {} kafkaConsumer.resume() requested currentLoad: {} loadBottomGreenLine: {}", id, subscriptionDefinition, actualCurrentLoad, loadBottomGreenLine);
-        }
+        adjustLoadAfterProcessing();
       }
     };
+  }
+
+  private void commitOffset(KafkaConsumerRecord<K, V> consumerRecord, long offset) {
+    Map<TopicPartition, OffsetAndMetadata> offsets = HashMap.newHashMap(2);
+    TopicPartition topicPartition = new TopicPartition(consumerRecord.topic(), consumerRecord.partition());
+    OffsetAndMetadata offsetAndMetadata = new OffsetAndMetadata(offset, null);
+    offsets.put(topicPartition, offsetAndMetadata);
+    LOGGER.debug("businessHandlerCompletionHandler:: Consumer - {} Committing offset: {}",
+      consumerDescriptor, offset);
+    kafkaConsumer.commit(offsets)
+      .onSuccess(ar -> LOGGER.info("businessHandlerCompletionHandler:: Consumer - {} Committed offset: {}",
+        consumerDescriptor, offset))
+      .onFailure(throwable -> LOGGER.error(
+        "businessHandlerCompletionHandler:: Consumer - {} Error while commit offset: {}",
+        consumerDescriptor, offset, throwable));
+  }
+
+  private void handleBusinessResult(AsyncResult<K> har, KafkaConsumerRecord<K, V> consumerRecord, long offset) {
+    if (har.failed()) {
+      if (har.cause() instanceof DuplicateEventException) {
+        LOGGER.info("businessHandlerCompletionHandler:: Duplicate event for a record - {} offset: {} has been "
+                    + "skipped, logging more info about it in error handler", consumerDescriptor, offset);
+      } else {
+        LOGGER.error("businessHandlerCompletionHandler:: Error while processing a record - {} offset: {}",
+          consumerDescriptor, offset, har.cause());
+      }
+      if (processRecordErrorHandler != null) {
+        LOGGER.info("businessHandlerCompletionHandler:: Starting error handler to process failures for a record - "
+                    + "{} offset: {} and send DI_ERROR events", consumerDescriptor, offset);
+        processRecordErrorHandler.handle(har.cause(), consumerRecord);
+      } else {
+        LOGGER.warn("businessHandlerCompletionHandler:: Error handler has not been implemented "
+                    + "for subscriptionPattern: {} failures", subscriptionDefinition);
+      }
+    }
+  }
+
+  private void adjustLoadAfterProcessing() {
+    int actualCurrentLoad = localLoadSensor.decrementAndGet();
+
+    int globalLoad = getGlobalLoadSensorForMutation().decrement();
+
+    if (!backPressureGauge.isThresholdExceeded(globalLoad, actualCurrentLoad, loadBottomGreenLine)
+        && isConsumerPaused()) {
+      resume();
+      LOGGER.info("businessHandlerCompletionHandler:: Consumer - {} kafkaConsumer.resume() requested "
+                  + "currentLoad: {} loadBottomGreenLine: {}", consumerDescriptor, actualCurrentLoad,
+        loadBottomGreenLine);
+    }
   }
 
   private GlobalLoadSensor getGlobalLoadSensorForMutation() {
     return globalLoadSensor != null && shouldAddToGlobalLoad ? globalLoadSensor : GLOBAL_SENSOR_NA;
   }
-
 }

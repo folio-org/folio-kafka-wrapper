@@ -1,9 +1,9 @@
 package org.folio.kafka;
 
-
 import java.util.List;
 
-public class SimpleConfigurationReader {
+public final class SimpleConfigurationReader {
+
   private SimpleConfigurationReader() {
     super();
   }

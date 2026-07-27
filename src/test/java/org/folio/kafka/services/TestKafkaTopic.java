@@ -8,7 +8,7 @@ public enum TestKafkaTopic implements KafkaTopic {
   private final String topic;
 
   TestKafkaTopic(String topic) {
-   this.topic = topic;
+    this.topic = topic;
   }
 
   @Override
@@ -36,6 +36,4 @@ public enum TestKafkaTopic implements KafkaTopic {
     }
     return null;
   }
-
-
 }

@@ -1,6 +1,10 @@
 package org.folio.kafka.interceptors;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import io.vertx.kafka.client.producer.KafkaProducerRecord;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -8,20 +12,16 @@ import org.apache.logging.log4j.core.LogEvent;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.appender.AbstractAppender;
 import org.folio.kafka.services.KafkaProducerRecordBuilder;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.slf4j.helpers.MessageFormatter;
 
-import java.util.ArrayList;
-import java.util.List;
-
-public class TenantIdCheckInterceptorTest {
+class TenantIdCheckInterceptorTest {
 
   private static TestAppender appender;
 
-  @BeforeClass
-  public static void classSetup() {
+  @BeforeAll
+  static void classSetup() {
     Logger logger = LogManager.getLogger(TenantIdCheckInterceptor.class.getName());
     appender = new TestAppender("TestAppender", null);
     ((LoggerContext) LogManager.getContext(false)).getConfiguration().addAppender(appender);
@@ -30,7 +30,7 @@ public class TenantIdCheckInterceptorTest {
   }
 
   @Test
-  public void onSend() {
+  void onSend() {
     String topicName = "topicName";
     String key = "key-0";
     String value = "value-0";
@@ -41,9 +41,9 @@ public class TenantIdCheckInterceptorTest {
 
     tenantIdCheckInterceptor.onSend(kafkaRecord);
 
-    Assert.assertEquals(1, appender.getMessages().size());
-    Assert.assertEquals(MessageFormatter.format(TenantIdCheckInterceptor.TENANT_ID_ERROR_MESSAGE, topicName).getMessage()
-      , appender.getMessages().get(0));
+    assertEquals(1, appender.getMessages().size());
+    assertEquals(MessageFormatter.format(TenantIdCheckInterceptor.TENANT_ID_ERROR_MESSAGE, topicName).getMessage(),
+      appender.getMessages().getFirst());
 
     // clear logged messages
     appender.clear();
@@ -58,7 +58,7 @@ public class TenantIdCheckInterceptorTest {
 
     tenantIdCheckInterceptor.onSend(vertxRecord.record());
 
-    Assert.assertEquals(0, appender.getMessages().size());
+    assertEquals(0, appender.getMessages().size());
   }
 
   private static class TestAppender extends AbstractAppender {
@@ -82,5 +82,4 @@ public class TenantIdCheckInterceptorTest {
       messages.clear();
     }
   }
-
 }

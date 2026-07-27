@@ -1,13 +1,5 @@
 package org.folio.kafka;
 
-import io.vertx.core.Vertx;
-import io.vertx.kafka.client.producer.KafkaHeader;
-import org.folio.kafka.exception.ProducerCreationException;
-import org.folio.kafka.services.KafkaProducerRecordBuilder;
-import org.junit.Test;
-
-import java.util.Map;
-
 import static java.util.UUID.randomUUID;
 import static org.folio.kafka.headers.FolioKafkaHeaders.TENANT_ID;
 import static org.folio.kafka.services.TestKafkaTopic.TOPIC_ONE;
@@ -16,14 +8,22 @@ import static org.folio.okapi.common.XOkapiHeaders.TENANT;
 import static org.folio.okapi.common.XOkapiHeaders.TOKEN;
 import static org.folio.okapi.common.XOkapiHeaders.URL;
 import static org.folio.okapi.common.XOkapiHeaders.USER_ID;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public class SimpleKafkaProducerManagerTest {
+import io.vertx.core.Vertx;
+import io.vertx.kafka.client.producer.KafkaHeader;
+import java.util.Map;
+import org.folio.kafka.exception.ProducerCreationException;
+import org.folio.kafka.services.KafkaProducerRecordBuilder;
+import org.junit.jupiter.api.Test;
+
+class SimpleKafkaProducerManagerTest {
 
   @Test
-  public void shouldReturnKafkaProduced() {
+  void shouldReturnKafkaProduced() {
     KafkaConfig kafkaConfig = KafkaConfig.builder()
       .kafkaHost("localhost")
       .kafkaPort("9092")
@@ -34,7 +34,7 @@ public class SimpleKafkaProducerManagerTest {
   }
 
   @Test
-  public void shouldBuildKafkaProducerRecord() {
+  void shouldBuildKafkaProducerRecord() {
     var expectedKey = randomUUID().toString();
     var expectedHeader = "okapi-header";
     var producerRecord = new KafkaProducerRecordBuilder<String, String>("tenant")
@@ -45,13 +45,14 @@ public class SimpleKafkaProducerManagerTest {
       .build();
 
     assertEquals(producerRecord.topic(), TOPIC_ONE.topicName());
-    assertArrayEquals(new String[]{TENANT_ID, expectedHeader},producerRecord.headers().stream().map(KafkaHeader::key).toArray());
+    assertArrayEquals(new String[] {TENANT_ID, expectedHeader},
+      producerRecord.headers().stream().map(KafkaHeader::key).toArray());
     assertEquals(producerRecord.key(), expectedKey);
     assertNotNull(producerRecord.value());
   }
 
   @Test
-  public void shouldPropagateOkapiHeaders() {
+  void shouldPropagateOkapiHeaders() {
     String tenantId = "2";
     Map<String, String> okapiHeaders = Map.of(
       URL.toLowerCase(), "1",
@@ -69,17 +70,21 @@ public class SimpleKafkaProducerManagerTest {
     assertEquals(6, producerRecord.headers().size());
   }
 
-  @Test(expected = ProducerCreationException.class)
-  public void shouldFailToBuildNullValue() {
-    new KafkaProducerRecordBuilder<String, String>("tenant")
-      .value(null)
-      .build();
+  @Test
+  @SuppressWarnings("java:S5778")
+  void shouldFailToBuildNullValue() {
+    assertThrows(ProducerCreationException.class, () ->
+      new KafkaProducerRecordBuilder<String, String>("tenant")
+        .value(null)
+        .build());
   }
 
-  @Test(expected = ProducerCreationException.class)
-  public void shouldFailToBuildNullTenant() {
-    new KafkaProducerRecordBuilder<String, String>(null)
-      .value("test")
-      .build();
+  @Test
+  @SuppressWarnings("java:S5778")
+  void shouldFailToBuildNullTenant() {
+    assertThrows(ProducerCreationException.class, () ->
+      new KafkaProducerRecordBuilder<String, String>(null)
+        .value("test")
+        .build());
   }
 }

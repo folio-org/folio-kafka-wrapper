@@ -1,26 +1,25 @@
 package org.folio.kafka;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.regex.Pattern;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
-import org.junit.After;
-import org.junit.Test;
+class KafkaTopicNameHelperTest {
 
-public class KafkaTopicNameHelperTest {
-
-  @After
-  public void tearDown(){
+  @AfterEach
+  void tearDown() {
     // revert qualifier since KafkaTopicNameHelper is static and can affect other tests
     KafkaTopicNameHelper.setTenantCollectionTopicsQualifier(null);
   }
 
   @Test
-  public void shouldFormatSubscriptionPatternForTenantAnySymbolWithAnyLength() {
+  void shouldFormatSubscriptionPatternForTenantAnySymbolWithAnyLength() {
     String subscriptionPattern = KafkaTopicNameHelper.formatSubscriptionPattern("folio", "Default", "DI_COMPLETED");
     Pattern pattern = Pattern.compile(subscriptionPattern);
     assertNotNull(subscriptionPattern);
@@ -34,74 +33,76 @@ public class KafkaTopicNameHelperTest {
   }
 
   @Test
-  public void shouldBuildSubscriptionDefinition() {
-    SubscriptionDefinition subscriptionDefinition = KafkaTopicNameHelper.createSubscriptionDefinition("folio", "Default", "DI_COMPLETED");
+  void shouldBuildSubscriptionDefinition() {
+    SubscriptionDefinition subscriptionDefinition =
+      KafkaTopicNameHelper.createSubscriptionDefinition("folio", "Default", "DI_COMPLETED");
     assertNotNull(subscriptionDefinition);
     assertNotNull(subscriptionDefinition.getEventType());
-    assertEquals( "DI_COMPLETED", subscriptionDefinition.getEventType());
+    assertEquals("DI_COMPLETED", subscriptionDefinition.getEventType());
     assertNotNull(subscriptionDefinition.getSubscriptionPattern());
     assertEquals("folio\\.Default\\.\\w{1,}\\.DI_COMPLETED", subscriptionDefinition.getSubscriptionPattern());
   }
 
   @Test
-  public void shouldFormatGroupName() {
+  void shouldFormatGroupName() {
     String subscriptionDefinition = KafkaTopicNameHelper.formatGroupName("DI_COMPLETED", "folio-kafka-wrapper");
     assertNotNull(subscriptionDefinition);
     assertEquals("DI_COMPLETED.folio-kafka-wrapper", subscriptionDefinition);
   }
 
   @Test
-  public void shouldGetEventTypeFromTopicName() {
+  void shouldGetEventTypeFromTopicName() {
     String eventType = KafkaTopicNameHelper.getEventTypeFromTopicName("folio.Default.test.DI_COMPLETED");
     assertNotNull(eventType);
     assertEquals("DI_COMPLETED", eventType);
   }
 
-  @Test(expected = RuntimeException.class)
-  public void shouldThrowRuntimeExceptionGetEventTypeFromTopicName() {
-    KafkaTopicNameHelper.getEventTypeFromTopicName("folio,Default;test#DI_COMPLETED");
+  @Test
+  void shouldThrowRuntimeExceptionGetEventTypeFromTopicName() {
+    assertThrows(RuntimeException.class,
+      () -> KafkaTopicNameHelper.getEventTypeFromTopicName("folio,Default;test#DI_COMPLETED"));
   }
 
   @Test
-  public void shouldFormatTopicName() {
-    String topicName = KafkaTopicNameHelper.formatTopicName("folio", "Default", "test","DI_COMPLETED");
+  void shouldFormatTopicName() {
+    String topicName = KafkaTopicNameHelper.formatTopicName("folio", "Default", "test", "DI_COMPLETED");
     assertNotNull(topicName);
     assertEquals("folio.Default.test.DI_COMPLETED", topicName);
 
     // enable tenant collection topics
     KafkaTopicNameHelper.setTenantCollectionTopicsQualifier("COLLECTION");
-    topicName = KafkaTopicNameHelper.formatTopicName("folio", "Default", "test","DI_COMPLETED");
+    topicName = KafkaTopicNameHelper.formatTopicName("folio", "Default", "test", "DI_COMPLETED");
     assertNotNull(topicName);
     assertEquals("folio.Default.COLLECTION.DI_COMPLETED", topicName);
   }
 
   @Test
-  public void shouldFormatTopicNameWithoutNamespace() {
-    String topicName = KafkaTopicNameHelper.formatTopicName("folio", "test","DI_COMPLETED");
+  void shouldFormatTopicNameWithoutNamespace() {
+    String topicName = KafkaTopicNameHelper.formatTopicName("folio", "test", "DI_COMPLETED");
     assertNotNull(topicName);
     assertEquals("folio.test.DI_COMPLETED", topicName);
 
     // enable tenant collection topics
     KafkaTopicNameHelper.setTenantCollectionTopicsQualifier("COLLECTION");
-    topicName = KafkaTopicNameHelper.formatTopicName("folio", "test","DI_COMPLETED");
+    topicName = KafkaTopicNameHelper.formatTopicName("folio", "test", "DI_COMPLETED");
     assertNotNull(topicName);
     assertEquals("folio.COLLECTION.DI_COMPLETED", topicName);
   }
 
   @Test
-  public void getDefaultNamespace() {
+  void getDefaultNamespace() {
     assertEquals("Default", KafkaTopicNameHelper.getDefaultNameSpace());
   }
 
   @Test
-  public void isTenantCollectionEnabled(){
+  void isTenantCollectionEnabled() {
     assertFalse(KafkaTopicNameHelper.isTenantCollectionTopicsEnabled());
     KafkaTopicNameHelper.setTenantCollectionTopicsQualifier("COLLECTION");
     assertTrue(KafkaTopicNameHelper.isTenantCollectionTopicsEnabled());
   }
 
-  @Test(expected = RuntimeException.class)
-  public void shouldErrorWhenBadTenantCollectionQualifier() {
-      KafkaTopicNameHelper.setTenantCollectionTopicsQualifier("diku");
+  @Test
+  void shouldErrorWhenBadTenantCollectionQualifier() {
+    assertThrows(RuntimeException.class, () -> KafkaTopicNameHelper.setTenantCollectionTopicsQualifier("diku"));
   }
 }
