@@ -23,8 +23,8 @@
     <lombok.version>1.18.46</lombok.version>
     <commons-lang3.version>3.20.0</commons-lang3.version>
     <log4j.version>2.26.1</log4j.version>
-    <vertx.version>5.1.5</vertx.version>
-    <okapi-common.version>7.0.6</okapi-common.version>
+    <vertx.version>5.1.6</vertx.version>
+    <okapi-common.version>7.0.7</okapi-common.version>
 
     <junit.version>6.1.2</junit.version>
     <mockito.version>5.23.0</mockito.version>
