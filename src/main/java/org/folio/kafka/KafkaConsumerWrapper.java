@@ -22,6 +22,8 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.folio.kafka.exception.DuplicateEventException;
+import org.folio.kafka.filtering.TenantEntitlementFilter;
+import org.folio.kafka.filtering.TenantEntitlementFilterProvider;
 import org.folio.okapi.common.XOkapiHeaders;
 import org.folio.okapi.common.logging.FolioLocal;
 import org.folio.okapi.common.logging.FolioLoggingContext;
@@ -67,6 +69,8 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
 
   private AsyncRecordHandler<K, V> businessHandler;
 
+  private TenantEntitlementFilter entitlementFilter;
+
   @Getter
   private int loadLimit;
 
@@ -110,6 +114,7 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
     }
 
     this.businessHandler = businessHandler;
+    this.entitlementFilter = TenantEntitlementFilterProvider.getOrCreate(vertx, kafkaConfig, moduleName);
 
     Map<String, String> consumerProps = kafkaConfig.getConsumerProps();
     consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG,
@@ -238,7 +243,33 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
 
     populateLoggingContext(consumerRecord);
 
+    if (entitlementFilter != null && applyEntitlementFilter(consumerRecord)) {
+      return;
+    }
+
     businessHandler.handle(consumerRecord).onComplete(businessHandlerCompletionHandler(consumerRecord));
+  }
+
+  /**
+   * Applies the tenant entitlement filter to the record, completing it (skip or filter-error) without
+   * involving the business handler when needed.
+   *
+   * @return {@code true} if the record has already been completed and {@link #handle} should return
+   */
+  private boolean applyEntitlementFilter(KafkaConsumerRecord<K, V> consumerRecord) {
+    try {
+      if (!entitlementFilter.shouldSkip(consumerRecord)) {
+        return false;
+      }
+      LOGGER.info("applyEntitlementFilter:: Consumer - {} Skipping record for non-entitled tenant: key: {}",
+        consumerDescriptor, consumerRecord.key());
+      businessHandlerCompletionHandler(consumerRecord).handle(Future.<K>succeededFuture(null));
+    } catch (RuntimeException e) {
+      LOGGER.error("applyEntitlementFilter:: Consumer - {} Tenant entitlement filter failed for record - key: {}",
+        consumerDescriptor, consumerRecord.key(), e);
+      businessHandlerCompletionHandler(consumerRecord).handle(Future.<K>failedFuture(e));
+    }
+    return true;
   }
 
   private void populateLoggingContext(KafkaConsumerRecord<K, V> consumerRecord) {
