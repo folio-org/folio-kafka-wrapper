@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.folio.kafka.GlobalLoadSensor;
 import org.folio.kafka.KafkaConfig;
 import org.folio.kafka.KafkaConsumerWrapper;
@@ -51,6 +52,8 @@ class TenantEntitlementFilteringIntegrationTest {
   private KafkaProducer<String, String> producer;
   private HttpServer entitlementsServer;
   private volatile Set<String> entitledTenants;
+  private final AtomicInteger entitlementsFailuresRemaining = new AtomicInteger(0);
+  private volatile long entitlementsResponseDelayMs = 0;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -73,7 +76,15 @@ class TenantEntitlementFilteringIntegrationTest {
 
   private HttpServer startEntitlementsServer() throws Exception {
     return vertx.createHttpServer()
-      .requestHandler(request -> request.response().end(new JsonArray(List.copyOf(entitledTenants)).encode()))
+      .requestHandler(request -> {
+        if (entitlementsFailuresRemaining.getAndUpdate(n -> n > 0 ? n - 1 : 0) > 0) {
+          // Mirrors folio-module-sidecar's 503 while its own boot-time entitlement load is in flight.
+          request.response().setStatusCode(503).end();
+          return;
+        }
+        vertx.setTimer(Math.max(entitlementsResponseDelayMs, 1),
+          id -> request.response().end(new JsonArray(List.copyOf(entitledTenants)).encode()));
+      })
       .listen(0)
       .toCompletionStage()
       .toCompletableFuture()
@@ -114,10 +125,38 @@ class TenantEntitlementFilteringIntegrationTest {
 
   @Test
   void shouldSkipNonEntitledTenantAndHonorLiveEntitlementUpdates(VertxTestContext testContext) throws Exception {
-    List<String> handledTenants = new CopyOnWriteArrayList<>();
     String eventType = "shouldSkipNonEntitledTenant";
     String topicName = KafkaTopicNameHelper.formatTopicName(env, getDefaultNameSpace(), "diku", eventType);
+    List<String> handledTenants = startConsumerCollectingHandledKeys(eventType);
 
+    assertEntitledTenantIsHandled(topicName, handledTenants);
+    assertNonEntitledTenantIsSkipped(topicName, handledTenants);
+    assertLiveEntitlementEventUnblocksTenant(topicName, handledTenants);
+
+    testContext.completeNow();
+  }
+
+  @Test
+  void shouldWaitForRealAnswer_whenFirstRecordRacesTheEntitlementLoad(VertxTestContext testContext) throws Exception {
+    entitledTenants = Set.of("diku");
+    entitlementsResponseDelayMs = 1000;
+    String eventType = "shouldWaitForRealAnswer";
+    String topicName = KafkaTopicNameHelper.formatTopicName(env, getDefaultNameSpace(), "college", eventType);
+    List<String> handledTenants = startConsumerCollectingHandledKeys(eventType);
+
+    // Sent immediately, so this races the deliberately slow initial /entitlements/modules/{id}
+    // lookup. The record should wait for the real (non-entitled) answer instead of being accepted
+    // unfiltered just because the cache wasn't populated yet.
+    sendRecord(topicName, "college", "college").toCompletionStage().toCompletableFuture().get(10, SECONDS);
+    Thread.sleep(2000);
+    assertFalse(handledTenants.contains("college"),
+      "record racing the entitlement load should wait for and honor the real, non-entitled answer");
+
+    testContext.completeNow();
+  }
+
+  private List<String> startConsumerCollectingHandledKeys(String eventType) throws Exception {
+    List<String> handledKeys = new CopyOnWriteArrayList<>();
     KafkaConsumerWrapper<String, String> consumerWrapper = KafkaConsumerWrapper.<String, String>builder()
       .context(vertx.getOrCreateContext())
       .vertx(vertx)
@@ -128,15 +167,11 @@ class TenantEntitlementFilteringIntegrationTest {
       .build();
 
     consumerWrapper.start(record -> {
-      handledTenants.add(record.key());
+      handledKeys.add(record.key());
       return Future.succeededFuture(record.key());
     }, moduleId).toCompletionStage().toCompletableFuture().get(10, SECONDS);
 
-    assertEntitledTenantIsHandled(topicName, handledTenants);
-    assertNonEntitledTenantIsSkipped(topicName, handledTenants);
-    assertLiveEntitlementEventUnblocksTenant(topicName, handledTenants);
-
-    testContext.completeNow();
+    return handledKeys;
   }
 
   private void assertEntitledTenantIsHandled(String topicName, List<String> handledTenants) throws Exception {
@@ -198,6 +233,49 @@ class TenantEntitlementFilteringIntegrationTest {
       .handle(any(TenantsAreDisabledException.class), any(KafkaConsumerRecord.class));
 
     testContext.completeNow();
+  }
+
+  @Test
+  void shouldRetryInitialLoad_whenSidecarRespondsNotYetLoaded(VertxTestContext testContext) throws Exception {
+    entitledTenants = Set.of();
+    entitlementsFailuresRemaining.set(1);
+
+    String eventType = "shouldRetryInitialLoad";
+    String topicName = KafkaTopicNameHelper.formatTopicName(env, getDefaultNameSpace(), "diku", eventType);
+
+    @SuppressWarnings("unchecked")
+    ProcessRecordErrorHandler<String, String> errorHandler = mock(ProcessRecordErrorHandler.class);
+
+    KafkaConsumerWrapper<String, String> consumerWrapper = KafkaConsumerWrapper.<String, String>builder()
+      .context(vertx.getOrCreateContext())
+      .vertx(vertx)
+      .kafkaConfig(kafkaConfig)
+      .loadLimit(5)
+      .globalLoadSensor(new GlobalLoadSensor.GlobalLoadSensorNA())
+      .subscriptionDefinition(KafkaTopicNameHelper.createSubscriptionDefinition(env, getDefaultNameSpace(), eventType))
+      .processRecordErrorHandler(errorHandler)
+      .build();
+
+    consumerWrapper.start(record -> Future.succeededFuture(record.key()), moduleId)
+      .toCompletionStage().toCompletableFuture().get(10, SECONDS);
+
+    resendUntilEntitlementsLoad(topicName);
+
+    verify(errorHandler, org.mockito.Mockito.timeout(6000).atLeastOnce())
+      .handle(any(TenantsAreDisabledException.class), any(KafkaConsumerRecord.class));
+
+    testContext.completeNow();
+  }
+
+  /**
+   * The periodic reconciliation is configured for 1 hour (see {@link #setFilterSystemProperties()}), so
+   * any success within this short resend window must come from the initial-load retry, not that timer.
+   */
+  private void resendUntilEntitlementsLoad(String topicName) throws Exception {
+    for (int i = 0; i < 15; i++) {
+      sendRecord(topicName, "diku-" + i, "diku").toCompletionStage().toCompletableFuture().get(10, SECONDS);
+      Thread.sleep(300);
+    }
   }
 
   private Future<Void> sendRecord(String topicName, String key, String tenant) {
