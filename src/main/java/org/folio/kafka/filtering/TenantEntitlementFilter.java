@@ -22,9 +22,7 @@ import org.folio.okapi.common.XOkapiHeaders;
 public class TenantEntitlementFilter {
 
   /**
-   * How long a single record waits for the cache to load before giving up and accepting it
-   * unfiltered - unrelated to (and much shorter than) the background load's own retry loop, which
-   * keeps going indefinitely regardless of how any individual record is handled.
+   * How long a single record waits for the cache to load before giving up and accepting it unfiltered.
    */
   private static final long CACHE_WAIT_RETRY_INTERVAL_MS = 200;
   private static final long CACHE_WAIT_TIMEOUT_MS = 10000;
@@ -40,10 +38,8 @@ public class TenantEntitlementFilter {
   /**
    * Creates a tenant entitlement filter.
    *
-   * @param initialLoadTrigger kicks off the (async) initial entitlement fetch; invoked at most once,
-   *     lazily, on the first record seen while the cache is still unpopulated - mirroring
-   *     folio-spring-kafka's fetch-on-first-use, so the first HTTP attempt to mgr-tenant-entitlements
-   *     via the sidecar happens as late as possible rather than racing the module's own startup
+   * @param initialLoadTrigger kicks off the initial entitlement fetch; invoked at most once, lazily,
+   *     on the first record seen while the cache is unpopulated
    */
   public TenantEntitlementFilter(String moduleId, TenantEntitlementService tenantEntitlementService,
     DisabledTenantStrategy tenantDisabledStrategy, DisabledTenantStrategy allTenantsDisabledStrategy,
@@ -66,9 +62,9 @@ public class TenantEntitlementFilter {
   /**
    * Returns whether the given record should be skipped rather than handed to the business handler.
    *
-   * <p>If the cache isn't populated yet, this retries briefly (see {@link #CACHE_WAIT_TIMEOUT_MS}) instead of
-   * deciding blind, since a real answer usually arrives within a few hundred milliseconds; only
-   * once that bounded wait elapses does it fall back to accepting the record unfiltered.
+   * <p>If the entitlement cache isn't populated yet, this retries briefly (see {@link #CACHE_WAIT_TIMEOUT_MS})
+   * instead of deciding blind. Once that bounded wait elapses, it falls back to accepting
+   * the record unfiltered.
    *
    * @param consumerRecord the record to test
    * @return a future resolving to {@code true} if the record should be skipped, or failing with a

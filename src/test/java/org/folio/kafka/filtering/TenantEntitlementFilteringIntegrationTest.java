@@ -94,7 +94,7 @@ class TenantEntitlementFilteringIntegrationTest {
   private void setFilterSystemProperties() {
     System.setProperty("ENV", env);
     System.setProperty(TenantEntitlementFilterProperties.ENABLED, "true");
-    System.setProperty(TenantEntitlementFilterProperties.ENTITLEMENT_REFRESH_INTERVAL_MS, "3600000");
+    System.setProperty(TenantEntitlementFilterProperties.ENTITLEMENT_REFRESH_INTERVAL_SECONDS, "3600");
     System.setProperty(TenantEntitlementFilterProperties.TENANT_DISABLED_STRATEGY, "SKIP");
     System.setProperty(TenantEntitlementFilterProperties.ALL_TENANTS_DISABLED_STRATEGY, "FAIL");
   }
@@ -111,7 +111,7 @@ class TenantEntitlementFilteringIntegrationTest {
   void tearDown(VertxTestContext testContext) {
     System.clearProperty("ENV");
     System.clearProperty(TenantEntitlementFilterProperties.ENABLED);
-    System.clearProperty(TenantEntitlementFilterProperties.ENTITLEMENT_REFRESH_INTERVAL_MS);
+    System.clearProperty(TenantEntitlementFilterProperties.ENTITLEMENT_REFRESH_INTERVAL_SECONDS);
     System.clearProperty(TenantEntitlementFilterProperties.TENANT_DISABLED_STRATEGY);
     System.clearProperty(TenantEntitlementFilterProperties.ALL_TENANTS_DISABLED_STRATEGY);
 
