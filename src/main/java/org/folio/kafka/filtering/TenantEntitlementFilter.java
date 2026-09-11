@@ -22,7 +22,8 @@ import org.folio.okapi.common.XOkapiHeaders;
 public class TenantEntitlementFilter {
 
   /**
-   * How long a single record waits for the cache to load before giving up and accepting it unfiltered.
+   * How long a single record waits for the cache to load before giving up and applying
+   * {@code allTenantsDisabledStrategy}.
    */
   private static final long CACHE_WAIT_RETRY_INTERVAL_MS = 200;
   private static final long CACHE_WAIT_TIMEOUT_MS = 10000;
@@ -63,8 +64,8 @@ public class TenantEntitlementFilter {
    * Returns whether the given record should be skipped rather than handed to the business handler.
    *
    * <p>If the entitlement cache isn't populated yet, this retries briefly (see {@link #CACHE_WAIT_TIMEOUT_MS})
-   * instead of deciding blind. Once that bounded wait elapses, it falls back to accepting
-   * the record unfiltered.
+   * instead of deciding blind. Once that bounded wait elapses, {@code allTenantsDisabledStrategy} is
+   * applied, the same as when the cache loads but comes back empty.
    *
    * @param consumerRecord the record to test
    * @return a future resolving to {@code true} if the record should be skipped, or failing with a
@@ -83,7 +84,7 @@ public class TenantEntitlementFilter {
     var enabledTenants = tenantEntitlementService.getEnabledTenants();
     if (enabledTenants == null) {
       triggerInitialLoadIfNeeded();
-      return waitForCacheOrAccept(consumerRecord, waitedMs, tenant);
+      return waitForCacheOrApplyStrategy(consumerRecord, waitedMs, tenant);
     }
 
     try {
@@ -96,12 +97,17 @@ public class TenantEntitlementFilter {
     }
   }
 
-  private Future<Boolean> waitForCacheOrAccept(KafkaConsumerRecord<?, ?> consumerRecord, long waitedMs,
+  private Future<Boolean> waitForCacheOrApplyStrategy(KafkaConsumerRecord<?, ?> consumerRecord, long waitedMs,
     String tenant) {
     if (waitedMs >= CACHE_WAIT_TIMEOUT_MS) {
       log.warn("Tenant entitlement cache still not populated after {} ms: moduleId = {}, tenant = {}. "
-        + "Accepting record.", waitedMs, moduleId, tenant);
-      return Future.succeededFuture(false);
+        + "Applying 'no entitled tenants' strategy: {}", waitedMs, moduleId, tenant, allTenantsDisabledStrategy);
+      try {
+        return Future.succeededFuture(
+          applyStrategy(allTenantsDisabledStrategy, () -> TenantsAreDisabledException.of(moduleId)));
+      } catch (RuntimeException e) {
+        return Future.failedFuture(e);
+      }
     }
 
     Promise<Boolean> promise = Promise.promise();

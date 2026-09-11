@@ -1,6 +1,7 @@
 package org.folio.kafka.filtering;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.kafka.client.consumer.KafkaConsumer;
 import java.util.Map;
@@ -47,7 +48,7 @@ public final class TenantEntitlementFilterProvider {
    * @return the shared filter, or {@code null} if filtering is disabled or {@code moduleId} is blank
    */
   public static TenantEntitlementFilter getOrCreate(Vertx vertx, KafkaConfig kafkaConfig, String moduleId) {
-    if (!TenantEntitlementFilterProperties.enabled()) {
+    if (!TenantEntitlementFilterProperties.isEnabled()) {
       return null;
     }
 
@@ -66,14 +67,14 @@ public final class TenantEntitlementFilterProvider {
     var client = new WebClientTenantEntitlementClient(vertx, kafkaConfig.getOkapiUrl());
     var service = new TenantEntitlementService(moduleId, client);
 
-    startEntitlementEventConsumer(vertx, kafkaConfig, moduleId, service);
+    var subscribed = startEntitlementEventConsumer(vertx, kafkaConfig, moduleId, service);
     vertx.setPeriodic(TenantEntitlementFilterProperties.entitlementRefreshIntervalMs(),
       timerId -> service.refresh());
 
     return new TenantEntitlementFilter(moduleId, service,
       TenantEntitlementFilterProperties.tenantDisabledStrategy(),
       TenantEntitlementFilterProperties.allTenantsDisabledStrategy(),
-      vertx, () -> loadInitialEntitlements(vertx, service, 1));
+      vertx, () -> subscribed.onComplete(ar -> loadInitialEntitlements(vertx, service, 1)));
   }
 
   private static void loadInitialEntitlements(Vertx vertx, TenantEntitlementService service, int attempt) {
@@ -96,7 +97,12 @@ public final class TenantEntitlementFilterProvider {
     return Math.min(delayMs, BACKGROUND_RETRY_MAX_DELAY_MS);
   }
 
-  private static void startEntitlementEventConsumer(Vertx vertx, KafkaConfig kafkaConfig, String moduleId,
+  /**
+   * Starts the entitlement-topic consumer and returns its {@code subscribe()} future, so callers can
+   * wait for the subscription to take effect before relying on {@code AUTO_OFFSET_RESET_CONFIG=latest}
+   * not to miss events (see {@link #createFilter}).
+   */
+  private static Future<Void> startEntitlementEventConsumer(Vertx vertx, KafkaConfig kafkaConfig, String moduleId,
     TenantEntitlementService service) {
     var consumerProps = kafkaConfig.getConsumerProps();
     consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "kafka-tenant-filter-entitlement-" + UUID.randomUUID());
@@ -106,13 +112,13 @@ public final class TenantEntitlementFilterProvider {
     consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
     KafkaConsumer<String, String> consumer = KafkaConsumer.create(vertx, consumerProps);
-    consumer.handler(record -> handleEntitlementRecord(record.value(), moduleId, service));
+    consumer.handler(consumerRecord -> handleEntitlementRecord(consumerRecord.value(), moduleId, service));
     consumer.exceptionHandler(throwable ->
       LOGGER.error("startEntitlementEventConsumer:: Error consuming entitlement topic: moduleId = {}",
         moduleId, throwable));
 
     var topic = KafkaEnvironmentProperties.environment() + ".entitlement";
-    consumer.subscribe(topic)
+    return consumer.subscribe(topic)
       .onSuccess(ar -> LOGGER.info("startEntitlementEventConsumer:: Subscribed to {}: moduleId = {}",
         topic, moduleId))
       .onFailure(throwable -> LOGGER.error(

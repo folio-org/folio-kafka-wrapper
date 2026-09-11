@@ -26,7 +26,7 @@ public final class TenantEntitlementFilterProperties {
   private TenantEntitlementFilterProperties() {
   }
 
-  public static boolean enabled() {
+  public static boolean isEnabled() {
     return Boolean.parseBoolean(SimpleConfigurationReader.getValue(ENABLED, ENABLED_DEFAULT));
   }
 

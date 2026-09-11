@@ -161,7 +161,7 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
       return logAndReturn("start:: businessHandler must be provided and can't be null.");
     }
 
-    if (TenantEntitlementFilterProperties.enabled() && StringUtils.isBlank(moduleId)) {
+    if (TenantEntitlementFilterProperties.isEnabled() && StringUtils.isBlank(moduleId)) {
       return logAndReturn("start:: Tenant entitlement filtering is enabled but moduleId is blank; pass the "
         + "module's true entitlements id (e.g. mod-foo-1.2.3) as start()'s moduleId argument.");
     }
