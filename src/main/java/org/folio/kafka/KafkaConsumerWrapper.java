@@ -226,9 +226,32 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
 
   @Override
   public void handle(KafkaConsumerRecord<K, V> consumerRecord) {
+    trackLoadAndPauseIfNeeded(consumerRecord);
+    populateLoggingContext(consumerRecord);
+
+    if (entitlementFilter == null) {
+      businessHandler.handle(consumerRecord).onComplete(businessHandlerCompletionHandler(consumerRecord));
+      return;
+    }
+
+    entitlementFilter.shouldSkip(consumerRecord).onComplete(ar -> {
+      if (ar.failed()) {
+        LOGGER.error("handle:: Consumer - {} Tenant entitlement filter failed for record - key: {}",
+          consumerDescriptor, consumerRecord.key(), ar.cause());
+        businessHandlerCompletionHandler(consumerRecord).handle(Future.<K>failedFuture(ar.cause()));
+      } else if (ar.result()) {
+        LOGGER.info("handle:: Consumer - {} Skipping record for non-entitled tenant: key: {}",
+          consumerDescriptor, consumerRecord.key());
+        businessHandlerCompletionHandler(consumerRecord).handle(Future.<K>succeededFuture(null));
+      } else {
+        businessHandler.handle(consumerRecord).onComplete(businessHandlerCompletionHandler(consumerRecord));
+      }
+    });
+  }
+
+  private void trackLoadAndPauseIfNeeded(KafkaConsumerRecord<K, V> consumerRecord) {
     LOGGER.trace("handle:: Handling record: {}", consumerRecord);
     int globalLoad = getGlobalLoadSensorForMutation().increment();
-
     int currentLoad = localLoadSensor.incrementAndGet();
 
     if (backPressureGauge.isThresholdExceeded(globalLoad, currentLoad, loadLimit) && !isConsumerPaused()) {
@@ -240,36 +263,6 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
     LOGGER.debug("handle:: Consumer - {} a Record has been received. key: {} currentLoad: {} globalLoad: {}",
       consumerDescriptor, consumerRecord.key(), currentLoad,
       globalLoadSensor != null ? String.valueOf(globalLoadSensor.current()) : "N/A");
-
-    populateLoggingContext(consumerRecord);
-
-    if (entitlementFilter != null && applyEntitlementFilter(consumerRecord)) {
-      return;
-    }
-
-    businessHandler.handle(consumerRecord).onComplete(businessHandlerCompletionHandler(consumerRecord));
-  }
-
-  /**
-   * Applies the tenant entitlement filter to the record, completing it (skip or filter-error) without
-   * involving the business handler when needed.
-   *
-   * @return {@code true} if the record has already been completed and {@link #handle} should return
-   */
-  private boolean applyEntitlementFilter(KafkaConsumerRecord<K, V> consumerRecord) {
-    try {
-      if (!entitlementFilter.shouldSkip(consumerRecord)) {
-        return false;
-      }
-      LOGGER.info("applyEntitlementFilter:: Consumer - {} Skipping record for non-entitled tenant: key: {}",
-        consumerDescriptor, consumerRecord.key());
-      businessHandlerCompletionHandler(consumerRecord).handle(Future.<K>succeededFuture(null));
-    } catch (RuntimeException e) {
-      LOGGER.error("applyEntitlementFilter:: Consumer - {} Tenant entitlement filter failed for record - key: {}",
-        consumerDescriptor, consumerRecord.key(), e);
-      businessHandlerCompletionHandler(consumerRecord).handle(Future.<K>failedFuture(e));
-    }
-    return true;
   }
 
   private void populateLoggingContext(KafkaConsumerRecord<K, V> consumerRecord) {
