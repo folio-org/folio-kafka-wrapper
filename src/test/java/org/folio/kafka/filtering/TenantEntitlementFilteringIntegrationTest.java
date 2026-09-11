@@ -169,7 +169,7 @@ class TenantEntitlementFilteringIntegrationTest {
     consumerWrapper.start(record -> {
       handledKeys.add(record.key());
       return Future.succeededFuture(record.key());
-    }, moduleId).toCompletionStage().toCompletableFuture().get(10, SECONDS);
+    }, moduleId, moduleId).toCompletionStage().toCompletableFuture().get(10, SECONDS);
 
     return handledKeys;
   }
@@ -219,7 +219,7 @@ class TenantEntitlementFilteringIntegrationTest {
       .processRecordErrorHandler(errorHandler)
       .build();
 
-    consumerWrapper.start(record -> Future.succeededFuture(record.key()), moduleId)
+    consumerWrapper.start(record -> Future.succeededFuture(record.key()), moduleId, moduleId)
       .toCompletionStage().toCompletableFuture().get(10, SECONDS);
 
     // Resend until the initial /entitlements/modules/{id} lookup (entitledTenants = {}) has landed;
@@ -256,7 +256,7 @@ class TenantEntitlementFilteringIntegrationTest {
       .processRecordErrorHandler(errorHandler)
       .build();
 
-    consumerWrapper.start(record -> Future.succeededFuture(record.key()), moduleId)
+    consumerWrapper.start(record -> Future.succeededFuture(record.key()), moduleId, moduleId)
       .toCompletionStage().toCompletableFuture().get(10, SECONDS);
 
     resendUntilEntitlementsLoad(topicName);
