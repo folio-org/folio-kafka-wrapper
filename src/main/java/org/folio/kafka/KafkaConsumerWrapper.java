@@ -229,18 +229,17 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
     trackLoadAndPauseIfNeeded(consumerRecord);
     populateLoggingContext(consumerRecord);
 
-    if (entitlementFilter == null) {
-      businessHandler.handle(consumerRecord).onComplete(businessHandlerCompletionHandler(consumerRecord));
-      return;
-    }
+    var shouldSkip = entitlementFilter == null
+      ? Future.succeededFuture(false)
+      : entitlementFilter.shouldSkip(consumerRecord);
 
-    entitlementFilter.shouldSkip(consumerRecord).onComplete(ar -> {
+    shouldSkip.onComplete(ar -> {
       if (ar.failed()) {
         LOGGER.error("handle:: Consumer - {} Tenant entitlement filter failed for record - key: {}",
           consumerDescriptor, consumerRecord.key(), ar.cause());
         businessHandlerCompletionHandler(consumerRecord).handle(Future.<K>failedFuture(ar.cause()));
       } else if (ar.result()) {
-        LOGGER.info("handle:: Consumer - {} Skipping record for non-entitled tenant: key: {}",
+        LOGGER.debug("handle:: Consumer - {} Skipping record for non-entitled tenant: key: {}",
           consumerDescriptor, consumerRecord.key());
         businessHandlerCompletionHandler(consumerRecord).handle(Future.<K>succeededFuture(null));
       } else {
