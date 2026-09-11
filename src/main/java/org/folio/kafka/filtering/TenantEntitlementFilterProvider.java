@@ -8,6 +8,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.folio.kafka.KafkaConfig;
@@ -27,6 +28,16 @@ public final class TenantEntitlementFilterProvider {
   private static final Logger LOGGER = LogManager.getLogger();
   private static final Map<String, TenantEntitlementFilter> FILTERS = new ConcurrentHashMap<>();
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+  /**
+   * Backoff settings for {@link #loadInitialEntitlements}'s background retry loop, which keeps
+   * retrying indefinitely on failure - if it gave up, nothing would filter correctly again until
+   * the next periodic reconciliation, which defaults to many minutes away. This is unrelated to
+   * (and much longer than) the short, bounded wait each individual record gets - see
+   * {@code TenantEntitlementFilter}'s own {@code CACHE_WAIT_TIMEOUT_MS}.
+   */
+  private static final long BACKGROUND_RETRY_BASE_DELAY_MS = 1000;
+  private static final long BACKGROUND_RETRY_MAX_DELAY_MS = 15000;
 
   private TenantEntitlementFilterProvider() {
   }
@@ -58,7 +69,6 @@ public final class TenantEntitlementFilterProvider {
 
     var client = new WebClientTenantEntitlementClient(vertx, kafkaConfig.getOkapiUrl());
     var service = new TenantEntitlementService(moduleId, client);
-    service.refresh();
 
     startEntitlementEventConsumer(vertx, kafkaConfig, moduleId, service);
     vertx.setPeriodic(TenantEntitlementFilterProperties.entitlementRefreshIntervalMs(),
@@ -66,7 +76,33 @@ public final class TenantEntitlementFilterProvider {
 
     return new TenantEntitlementFilter(moduleId, service,
       TenantEntitlementFilterProperties.tenantDisabledStrategy(),
-      TenantEntitlementFilterProperties.allTenantsDisabledStrategy());
+      TenantEntitlementFilterProperties.allTenantsDisabledStrategy(),
+      vertx, () -> loadInitialEntitlements(vertx, service, 1));
+  }
+
+  private static void loadInitialEntitlements(Vertx vertx, TenantEntitlementService service, int attempt) {
+    service.refresh().onFailure(cause -> {
+      long delayMs = nextRetryDelayMs(attempt);
+      LOGGER.info("loadInitialEntitlements:: Initial entitlement load failed, retrying in {} ms: "
+        + "moduleId = {}, attempt = {}", delayMs, service.getModuleId(), attempt);
+      vertx.setTimer(delayMs, timerId -> loadInitialEntitlements(vertx, service, attempt + 1));
+    });
+  }
+
+  /**
+   * Doubles the delay on each attempt (1s, 2s, 4s, 8s, ...), capped at {@code BACKGROUND_RETRY_MAX_DELAY_MS}.
+   *
+   * <p>{@code loadInitialEntitlements} never gives up, so {@code attempt} keeps growing for as long
+   * as a backend outage lasts. The loop below stops doubling as soon as it reaches the cap - after
+   * only a handful of iterations - rather than doubling once per attempt, so an ever-growing
+   * {@code attempt} during a long outage never makes it run any longer than that.
+   */
+  private static long nextRetryDelayMs(int attempt) {
+    long delayMs = BACKGROUND_RETRY_BASE_DELAY_MS;
+    for (int i = 1; i < attempt && delayMs < BACKGROUND_RETRY_MAX_DELAY_MS; i++) {
+      delayMs *= 2;
+    }
+    return Math.min(delayMs, BACKGROUND_RETRY_MAX_DELAY_MS);
   }
 
   private static void startEntitlementEventConsumer(Vertx vertx, KafkaConfig kafkaConfig, String moduleId,
@@ -75,6 +111,8 @@ public final class TenantEntitlementFilterProvider {
     consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "kafka-tenant-filter-entitlement-" + UUID.randomUUID());
     consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
     consumerProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
+    consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+    consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
     KafkaConsumer<String, String> consumer = KafkaConsumer.create(vertx, consumerProps);
     consumer.handler(record -> handleEntitlementRecord(record.value(), moduleId, service));
