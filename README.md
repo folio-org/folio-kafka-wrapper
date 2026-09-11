@@ -94,18 +94,16 @@ consumerWrapper.setGroupInstanceId(groupInstanceId);
 ```
 ## Kafka Tenant Filtering
 
-`folio-kafka-wrapper` can filter incoming Kafka records so `KafkaConsumerWrapper` only hands a
-module its business handler when the message's tenant is entitled to that module. Filtering is
-disabled by default; a module opts in via `FOLIO_KAFKA_TENANT_FILTER_ENABLED=true`.
+Kafka tenant filtering allows `KafkaConsumerWrapper` to skip Kafka messages for tenants for which the module is not 
+enabled. Filtering is disabled by default. Modules can enable it by setting `FOLIO_KAFKA_TENANT_FILTER_ENABLED=true`.
 
 Filtering needs the module's moduleId in `<artifactId>-<version>` format (for example
-`mod-foo-1.2.3`). Pass the moduleId as the third argument to `start(handler, consumerGroupSuffix, moduleId)`:
+`mod-foo-1.2.3`). Pass the moduleId as the third argument to `start(handler, consumerGroupSuffix, moduleId)` method:
 ```java
 consumerWrapper.start(getHandler(), "mod-foo-1-" + UUID.randomUUID(), "mod-foo-1.2.3");
 ```
 The existing two-argument `start(handler, consumerGroupSuffix)` is deprecated: it passes no
-`moduleId`, so `start()` fails fast if filtering is enabled - migrate to the three-argument form
-above instead.
+`moduleId`, so `start()` fails fast if filtering is enabled - use the three-argument form instead.
 
 This is the Vert.x/RMB counterpart to `folio-spring-kafka`'s tenant-aware `RecordFilterStrategy`,
 described in [folio-spring-support's README](https://github.com/folio-org/folio-spring-support#kafka-tenant-filtering) -
@@ -127,7 +125,8 @@ The entitled-tenants set is cached in-process and kept current three ways:
 1. On the first Kafka record seen with an unpopulated cache, an async fetch from the sidecar
    (`GET /entitlements/modules/{moduleId}`) starts, retrying indefinitely with a capped backoff on
    failure. Kafka records seen while that fetch is still in flight wait up to 10 seconds for it to
-   finish before falling back to being accepted unfiltered.
+   finish; if it still hasn't finished by then, `ALL_TENANTS_DISABLED_STRATEGY` is applied, the same
+   as when the cache loads but comes back empty.
 2. Direct updates from `ENTITLE`/`UPGRADE`/`REVOKE` events on the `entitlement` Kafka topic. Each
    module instance uses its own unique consumer group id, so every instance observes every event.
 3. A periodic full re-fetch that corrects any drift from a missed or duplicate event.

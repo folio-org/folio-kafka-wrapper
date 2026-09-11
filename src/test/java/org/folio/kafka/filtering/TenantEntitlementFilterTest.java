@@ -111,9 +111,22 @@ class TenantEntitlementFilterTest {
   }
 
   @Test
-  void shouldSkip_shouldAccept_whenCacheNeverPopulatesWithinTheBoundedWait() throws Exception {
+  void shouldSkip_shouldApplyAllTenantsDisabledStrategy_whenCacheNeverPopulatesWithinTheBoundedWait()
+    throws Exception {
     when(service.getEnabledTenants()).thenReturn(null);
     var filter = filter(DisabledTenantStrategy.SKIP, DisabledTenantStrategy.FAIL);
+
+    var future = filter.shouldSkip(recordForTenant("diku"));
+    var exception = assertThrows(ExecutionException.class, () -> await(future));
+    assertTrue(exception.getCause() instanceof TenantsAreDisabledException);
+    assertEquals(1, initialLoadTriggerCount.get(), "initial load should be triggered exactly once");
+  }
+
+  @Test
+  void shouldSkip_shouldAccept_whenCacheNeverPopulatesWithinTheBoundedWaitAndAllTenantsStrategyIsAccept()
+    throws Exception {
+    when(service.getEnabledTenants()).thenReturn(null);
+    var filter = filter(DisabledTenantStrategy.SKIP, DisabledTenantStrategy.ACCEPT);
 
     assertFalse(await(filter.shouldSkip(recordForTenant("diku"))));
     assertEquals(1, initialLoadTriggerCount.get(), "initial load should be triggered exactly once");
