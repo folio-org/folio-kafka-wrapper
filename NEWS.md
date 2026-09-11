@@ -2,6 +2,7 @@
 ### Breaking changes
 
 ### Features
+* [KAFKAWRAP-76](https://issues.folio.org/browse/KAFKAWRAP-76) Add entitlement-based tenant filtering for Kafka consumers
 
 ### Bug fixes
 

@@ -22,6 +22,9 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.folio.kafka.exception.DuplicateEventException;
+import org.folio.kafka.filtering.TenantEntitlementFilter;
+import org.folio.kafka.filtering.TenantEntitlementFilterProperties;
+import org.folio.kafka.filtering.TenantEntitlementFilterProvider;
 import org.folio.okapi.common.XOkapiHeaders;
 import org.folio.okapi.common.logging.FolioLocal;
 import org.folio.okapi.common.logging.FolioLoggingContext;
@@ -67,6 +70,8 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
 
   private AsyncRecordHandler<K, V> businessHandler;
 
+  private TenantEntitlementFilter entitlementFilter;
+
   @Getter
   private int loadLimit;
 
@@ -101,19 +106,42 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
     this.loadBottomGreenLine = loadLimit / 2;
   }
 
-  public Future<Void> start(AsyncRecordHandler<K, V> businessHandler, String moduleName) {
-    LOGGER.debug("start:: KafkaConsumerWrapper is starting for module: {}", moduleName);
+  /**
+   * Starts the consumer without an entitlements module id. Fails if tenant entitlement filtering is
+   * enabled.
+   *
+   * @deprecated use {@link #start(AsyncRecordHandler, String, String)} instead.
+   */
+  @Deprecated
+  public Future<Void> start(AsyncRecordHandler<K, V> businessHandler, String consumerGroupSuffix) {
+    return start(businessHandler, consumerGroupSuffix, null);
+  }
 
-    String validationFailureMessage = validateStartParameters(businessHandler);
+  /**
+   * Starts the consumer.
+   *
+   * @param consumerGroupSuffix used to derive the Kafka consumer group id (see
+   *     {@link KafkaTopicNameHelper#formatGroupName}); may be decorated with extra detail (a UUID,
+   *     a class name, etc).
+   * @param moduleId the module's id, in {@code <artifactId>-<version>} format (for example
+   *     {@code mod-foo-1.2.3}); used for tenant entitlement filtering (see
+   *     {@code TenantEntitlementFilterProperties}). Required and must not be blank whenever
+   *     tenant entitlement filtering is enabled.
+   */
+  public Future<Void> start(AsyncRecordHandler<K, V> businessHandler, String consumerGroupSuffix, String moduleId) {
+    LOGGER.debug("start:: KafkaConsumerWrapper is starting: consumerGroupSuffix = {}", consumerGroupSuffix);
+
+    String validationFailureMessage = validateStartParameters(businessHandler, moduleId);
     if (validationFailureMessage != null) {
       return Future.failedFuture(validationFailureMessage);
     }
 
     this.businessHandler = businessHandler;
+    this.entitlementFilter = TenantEntitlementFilterProvider.getOrCreate(vertx, kafkaConfig, moduleId);
 
     Map<String, String> consumerProps = kafkaConfig.getConsumerProps();
     consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG,
-      KafkaTopicNameHelper.formatGroupName(subscriptionDefinition.getEventType(), moduleName));
+      KafkaTopicNameHelper.formatGroupName(subscriptionDefinition.getEventType(), consumerGroupSuffix));
     consumerProps.put(ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, groupInstanceId);
 
     kafkaConsumer = KafkaConsumer.create(vertx, consumerProps);
@@ -128,32 +156,34 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
       .onFailure(throwable -> LOGGER.error("start:: Consumer creation failed", throwable));
   }
 
-  private String validateStartParameters(AsyncRecordHandler<K, V> businessHandler) {
+  private String validateStartParameters(AsyncRecordHandler<K, V> businessHandler, String moduleId) {
     if (businessHandler == null) {
-      String failureMessage = "start:: businessHandler must be provided and can't be null.";
-      LOGGER.error(failureMessage);
-      return failureMessage;
+      return logAndReturn("start:: businessHandler must be provided and can't be null.");
+    }
+
+    if (TenantEntitlementFilterProperties.isEnabled() && StringUtils.isBlank(moduleId)) {
+      return logAndReturn("start:: Tenant entitlement filtering is enabled but moduleId is blank; pass the "
+        + "module's true entitlements id (e.g. mod-foo-1.2.3) as start()'s moduleId argument.");
     }
 
     if (subscriptionDefinition == null || StringUtils.isBlank(subscriptionDefinition.getSubscriptionPattern())) {
-      String failureMessage = "start:: subscriptionPattern can't be null nor empty. " + subscriptionDefinition;
-      LOGGER.error(failureMessage);
-      return failureMessage;
+      return logAndReturn("start:: subscriptionPattern can't be null nor empty. " + subscriptionDefinition);
     }
 
     if (loadLimit < 1) {
-      String failureMessage = "start:: loadLimit must be greater than 0. Current value is " + loadLimit;
-      LOGGER.error(failureMessage);
-      return failureMessage;
+      return logAndReturn("start:: loadLimit must be greater than 0. Current value is " + loadLimit);
     }
 
     if (groupInstanceId != null && groupInstanceId.isBlank()) {
-      String failureMessage = INVALID_GROUP_INSTANCE_ID_MSG.formatted(groupInstanceId);
-      LOGGER.error("start:: {}", failureMessage);
-      return failureMessage;
+      return logAndReturn(INVALID_GROUP_INSTANCE_ID_MSG.formatted(groupInstanceId));
     }
 
     return null;
+  }
+
+  private String logAndReturn(String failureMessage) {
+    LOGGER.error(failureMessage);
+    return failureMessage;
   }
 
   public void setLoadLimit(int loadLimit) {
@@ -221,9 +251,31 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
 
   @Override
   public void handle(KafkaConsumerRecord<K, V> consumerRecord) {
+    trackLoadAndPauseIfNeeded(consumerRecord);
+    populateLoggingContext(consumerRecord);
+
+    var shouldSkip = entitlementFilter == null
+      ? Future.succeededFuture(false)
+      : entitlementFilter.shouldSkip(consumerRecord);
+
+    shouldSkip.onComplete(ar -> {
+      if (ar.failed()) {
+        LOGGER.error("handle:: Consumer - {} Tenant entitlement filter failed for record - key: {}",
+          consumerDescriptor, consumerRecord.key(), ar.cause());
+        businessHandlerCompletionHandler(consumerRecord).handle(Future.<K>failedFuture(ar.cause()));
+      } else if (ar.result()) {
+        LOGGER.debug("handle:: Consumer - {} Skipping record for non-entitled tenant: key: {}",
+          consumerDescriptor, consumerRecord.key());
+        businessHandlerCompletionHandler(consumerRecord).handle(Future.<K>succeededFuture(null));
+      } else {
+        businessHandler.handle(consumerRecord).onComplete(businessHandlerCompletionHandler(consumerRecord));
+      }
+    });
+  }
+
+  private void trackLoadAndPauseIfNeeded(KafkaConsumerRecord<K, V> consumerRecord) {
     LOGGER.trace("handle:: Handling record: {}", consumerRecord);
     int globalLoad = getGlobalLoadSensorForMutation().increment();
-
     int currentLoad = localLoadSensor.incrementAndGet();
 
     if (backPressureGauge.isThresholdExceeded(globalLoad, currentLoad, loadLimit) && !isConsumerPaused()) {
@@ -235,10 +287,6 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
     LOGGER.debug("handle:: Consumer - {} a Record has been received. key: {} currentLoad: {} globalLoad: {}",
       consumerDescriptor, consumerRecord.key(), currentLoad,
       globalLoadSensor != null ? String.valueOf(globalLoadSensor.current()) : "N/A");
-
-    populateLoggingContext(consumerRecord);
-
-    businessHandler.handle(consumerRecord).onComplete(businessHandlerCompletionHandler(consumerRecord));
   }
 
   private void populateLoggingContext(KafkaConsumerRecord<K, V> consumerRecord) {
