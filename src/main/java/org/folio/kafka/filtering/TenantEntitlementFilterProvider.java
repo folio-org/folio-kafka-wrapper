@@ -16,12 +16,11 @@ import org.folio.kafka.services.KafkaEnvironmentProperties;
 
 /**
  * Lazily creates and shares one {@link TenantEntitlementFilter} per module id within this JVM, so
- * that any number of {@code KafkaConsumerWrapper} instances started by the same module reuse a
- * single entitlement cache and a single {@code entitlement}-topic consumer, rather than each
- * spinning up their own.
+ * every {@code KafkaConsumerWrapper} for a module reuses the same entitlement cache and
+ * {@code entitlement}-topic consumer.
  *
- * <p>Returns {@code null} when filtering is disabled via {@link TenantEntitlementFilterProperties},
- * which is the case unless a module opts in.
+ * <p>Returns {@code null} when filtering is disabled (the default) via
+ * {@link TenantEntitlementFilterProperties}.
  */
 public final class TenantEntitlementFilterProvider {
 
@@ -30,11 +29,8 @@ public final class TenantEntitlementFilterProvider {
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   /**
-   * Backoff settings for {@link #loadInitialEntitlements}'s background retry loop, which keeps
-   * retrying indefinitely on failure - if it gave up, nothing would filter correctly again until
-   * the next periodic reconciliation, which defaults to many minutes away. This is unrelated to
-   * (and much longer than) the short, bounded wait each individual record gets - see
-   * {@code TenantEntitlementFilter}'s own {@code CACHE_WAIT_TIMEOUT_MS}.
+   * Backoff for {@link #loadInitialEntitlements}, which retries indefinitely on failure - unlike
+   * (and much longer than) each record's own short, bounded wait ({@code CACHE_WAIT_TIMEOUT_MS}).
    */
   private static final long BACKGROUND_RETRY_BASE_DELAY_MS = 1000;
   private static final long BACKGROUND_RETRY_MAX_DELAY_MS = 15000;
@@ -91,11 +87,6 @@ public final class TenantEntitlementFilterProvider {
 
   /**
    * Doubles the delay on each attempt (1s, 2s, 4s, 8s, ...), capped at {@code BACKGROUND_RETRY_MAX_DELAY_MS}.
-   *
-   * <p>{@code loadInitialEntitlements} never gives up, so {@code attempt} keeps growing for as long
-   * as a backend outage lasts. The loop below stops doubling as soon as it reaches the cap - after
-   * only a handful of iterations - rather than doubling once per attempt, so an ever-growing
-   * {@code attempt} during a long outage never makes it run any longer than that.
    */
   private static long nextRetryDelayMs(int attempt) {
     long delayMs = BACKGROUND_RETRY_BASE_DELAY_MS;
