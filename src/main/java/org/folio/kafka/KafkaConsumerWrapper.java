@@ -23,6 +23,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.folio.kafka.exception.DuplicateEventException;
 import org.folio.kafka.filtering.TenantEntitlementFilter;
+import org.folio.kafka.filtering.TenantEntitlementFilterProperties;
 import org.folio.kafka.filtering.TenantEntitlementFilterProvider;
 import org.folio.okapi.common.XOkapiHeaders;
 import org.folio.okapi.common.logging.FolioLocal;
@@ -105,20 +106,42 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
     this.loadBottomGreenLine = loadLimit / 2;
   }
 
-  public Future<Void> start(AsyncRecordHandler<K, V> businessHandler, String moduleName) {
-    LOGGER.debug("start:: KafkaConsumerWrapper is starting for module: {}", moduleName);
+  /**
+   * Starts the consumer without an entitlements module id. Fails if tenant entitlement filtering is
+   * enabled.
+   *
+   * @deprecated use {@link #start(AsyncRecordHandler, String, String)} instead.
+   */
+  @Deprecated
+  public Future<Void> start(AsyncRecordHandler<K, V> businessHandler, String consumerGroupSuffix) {
+    return start(businessHandler, consumerGroupSuffix, null);
+  }
 
-    String validationFailureMessage = validateStartParameters(businessHandler);
+  /**
+   * Starts the consumer.
+   *
+   * @param consumerGroupSuffix used to derive the Kafka consumer group id (see
+   *     {@link KafkaTopicNameHelper#formatGroupName}); may be decorated with extra detail (a UUID,
+   *     a class name, etc).
+   * @param moduleId the module's id, in {@code <artifactId>-<version>} format (for example
+   *     {@code mod-foo-1.2.3}); used for tenant entitlement filtering (see
+   *     {@code TenantEntitlementFilterProperties}). Required and must not be blank whenever
+   *     tenant entitlement filtering is enabled.
+   */
+  public Future<Void> start(AsyncRecordHandler<K, V> businessHandler, String consumerGroupSuffix, String moduleId) {
+    LOGGER.debug("start:: KafkaConsumerWrapper is starting: consumerGroupSuffix = {}", consumerGroupSuffix);
+
+    String validationFailureMessage = validateStartParameters(businessHandler, moduleId);
     if (validationFailureMessage != null) {
       return Future.failedFuture(validationFailureMessage);
     }
 
     this.businessHandler = businessHandler;
-    this.entitlementFilter = TenantEntitlementFilterProvider.getOrCreate(vertx, kafkaConfig, moduleName);
+    this.entitlementFilter = TenantEntitlementFilterProvider.getOrCreate(vertx, kafkaConfig, moduleId);
 
     Map<String, String> consumerProps = kafkaConfig.getConsumerProps();
     consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG,
-      KafkaTopicNameHelper.formatGroupName(subscriptionDefinition.getEventType(), moduleName));
+      KafkaTopicNameHelper.formatGroupName(subscriptionDefinition.getEventType(), consumerGroupSuffix));
     consumerProps.put(ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, groupInstanceId);
 
     kafkaConsumer = KafkaConsumer.create(vertx, consumerProps);
@@ -133,32 +156,34 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
       .onFailure(throwable -> LOGGER.error("start:: Consumer creation failed", throwable));
   }
 
-  private String validateStartParameters(AsyncRecordHandler<K, V> businessHandler) {
+  private String validateStartParameters(AsyncRecordHandler<K, V> businessHandler, String moduleId) {
     if (businessHandler == null) {
-      String failureMessage = "start:: businessHandler must be provided and can't be null.";
-      LOGGER.error(failureMessage);
-      return failureMessage;
+      return logAndReturn("start:: businessHandler must be provided and can't be null.");
+    }
+
+    if (TenantEntitlementFilterProperties.enabled() && StringUtils.isBlank(moduleId)) {
+      return logAndReturn("start:: Tenant entitlement filtering is enabled but moduleId is blank; pass the "
+        + "module's true entitlements id (e.g. mod-foo-1.2.3) as start()'s moduleId argument.");
     }
 
     if (subscriptionDefinition == null || StringUtils.isBlank(subscriptionDefinition.getSubscriptionPattern())) {
-      String failureMessage = "start:: subscriptionPattern can't be null nor empty. " + subscriptionDefinition;
-      LOGGER.error(failureMessage);
-      return failureMessage;
+      return logAndReturn("start:: subscriptionPattern can't be null nor empty. " + subscriptionDefinition);
     }
 
     if (loadLimit < 1) {
-      String failureMessage = "start:: loadLimit must be greater than 0. Current value is " + loadLimit;
-      LOGGER.error(failureMessage);
-      return failureMessage;
+      return logAndReturn("start:: loadLimit must be greater than 0. Current value is " + loadLimit);
     }
 
     if (groupInstanceId != null && groupInstanceId.isBlank()) {
-      String failureMessage = INVALID_GROUP_INSTANCE_ID_MSG.formatted(groupInstanceId);
-      LOGGER.error("start:: {}", failureMessage);
-      return failureMessage;
+      return logAndReturn(INVALID_GROUP_INSTANCE_ID_MSG.formatted(groupInstanceId));
     }
 
     return null;
+  }
+
+  private String logAndReturn(String failureMessage) {
+    LOGGER.error(failureMessage);
+    return failureMessage;
   }
 
   public void setLoadLimit(int loadLimit) {
