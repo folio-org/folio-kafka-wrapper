@@ -97,17 +97,26 @@ consumerWrapper.setGroupInstanceId(groupInstanceId);
 Kafka tenant filtering allows `KafkaConsumerWrapper` to skip Kafka messages for tenants for which the module is not 
 enabled. Filtering is disabled by default. Modules can enable it by setting `FOLIO_KAFKA_TENANT_FILTER_ENABLED=true`.
 
-Filtering needs the module's moduleId in `<artifactId>-<version>` format (for example
-`mod-foo-1.2.3`). Pass the moduleId as the third argument to `start(handler, consumerGroupSuffix, moduleId)` method:
-```java
-consumerWrapper.start(getHandler(), "mod-foo-1-" + UUID.randomUUID(), "mod-foo-1.2.3");
-```
-The existing two-argument `start(handler, consumerGroupSuffix)` is deprecated: it passes no
-`moduleId`, so `start()` fails fast if filtering is enabled - use the three-argument form instead.
-
 This is the Vert.x/RMB counterpart to `folio-spring-kafka`'s tenant-aware `RecordFilterStrategy`,
 described in [folio-spring-support's README](https://github.com/folio-org/folio-spring-support#kafka-tenant-filtering) -
 the two libraries share the same environment variable names for the settings they have in common.
+
+### Using the filter in a module
+
+No extra dependency is needed – filtering is wired into every `KafkaConsumerWrapper` automatically once enabled.
+`start(handler, consumerGroupSuffix, moduleId)` takes two id-like arguments that serve different purposes:
+```java
+consumerWrapper.start(getHandler(), "mod-foo-1.2.3-" + UUID.randomUUID(), "mod-foo-1.2.3");
+```
+* `consumerGroupSuffix` - used to form the Kafka consumer group id. It should be unique per module *version*
+  (for example include the version, so `mod-foo-1.0` and `mod-foo-1.1` don't share a consumer group), and modules
+  may append further detail (a UUID, a class name etc) to make an individual instance consume every message instead
+  of sharing load with the rest of the group.
+* `moduleId` - the module's true id, in `<artifactId>-<version>` format (for example `mod-foo-1.2.3`), used only
+  for entitlement filtering.
+
+The existing two-argument `start(handler, consumerGroupSuffix)` is deprecated: it passes no
+`moduleId`, so `start()` fails fast if filtering is enabled - use the three-argument form instead.
 
 ### How filtering works
 
