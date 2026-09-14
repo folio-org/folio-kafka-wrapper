@@ -7,11 +7,13 @@ import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.kafka.client.consumer.KafkaConsumerRecord;
+import io.vertx.kafka.client.producer.KafkaHeader;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import lombok.extern.log4j.Log4j2;
+import org.folio.kafka.headers.FolioKafkaHeaders;
 import org.folio.okapi.common.XOkapiHeaders;
 
 /**
@@ -122,20 +124,39 @@ public class TenantEntitlementFilter {
     }
   }
 
+  /**
+   * Prefers {@code X-Okapi-Tenant}, falling back to {@code folio.tenantId} - a tenant header set
+   * unconditionally by several FOLIO producer utilities, including this library's own
+   * {@link org.folio.kafka.services.KafkaProducerRecordBuilder}.
+   */
   private String resolveTenant(KafkaConsumerRecord<?, ?> consumerRecord) {
+    var tenant = findHeaderValue(consumerRecord, XOkapiHeaders.TENANT);
+    if (tenant == null) {
+      tenant = findHeaderValue(consumerRecord, FolioKafkaHeaders.TENANT_ID);
+    }
+
+    if (tenant == null) {
+      log.warn("Received message with missing or blank {}/{} header: moduleId = {}. Filter won't be applied.",
+        XOkapiHeaders.TENANT, FolioKafkaHeaders.TENANT_ID, moduleId);
+    }
+    return tenant;
+  }
+
+  private static String findHeaderValue(KafkaConsumerRecord<?, ?> consumerRecord, String headerName) {
     for (var header : consumerRecord.headers()) {
-      if (XOkapiHeaders.TENANT.equalsIgnoreCase(header.key())) {
-        var value = header.value();
-        var tenant = value == null ? null : trimToNull(value.toString());
-        if (tenant != null) {
-          return tenant;
+      if (headerName.equalsIgnoreCase(header.key())) {
+        var value = headerValue(header);
+        if (value != null) {
+          return value;
         }
       }
     }
-
-    log.warn("Received message with missing or blank {} header: moduleId = {}. Filter won't be applied.",
-      XOkapiHeaders.TENANT, moduleId);
     return null;
+  }
+
+  private static String headerValue(KafkaHeader header) {
+    var value = header.value();
+    return value == null ? null : trimToNull(value.toString());
   }
 
   private boolean filterByEnabledTenants(Set<String> enabledTenants, String currentTenant) {

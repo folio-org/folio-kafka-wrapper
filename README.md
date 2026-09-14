@@ -122,7 +122,8 @@ The existing two-argument `start(handler, consumerGroupSuffix)` is deprecated: i
 
 When enabled, for each record:
 
-1. Reads the `x-okapi-tenant` value from Kafka record headers. The filter does not deserialize the message body.
+1. Reads the tenant from Kafka record headers - `x-okapi-tenant`, falling back to `folio.tenantId` if that's
+   absent. The filter does not deserialize the message body.
 2. Checks if the tenant is entitled to the module, using the in-process entitlement cache described below.
 3. If the tenant is entitled, hands the record to the business handler.
 4. Applies `TENANT_DISABLED_STRATEGY` when the tenant is not entitled to the current module.
