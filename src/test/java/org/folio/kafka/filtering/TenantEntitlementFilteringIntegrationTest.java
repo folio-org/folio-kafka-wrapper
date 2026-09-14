@@ -56,6 +56,7 @@ class TenantEntitlementFilteringIntegrationTest {
   private KafkaConfig kafkaConfig;
   private KafkaProducer<String, String> producer;
   private HttpServer entitlementsServer;
+  private KafkaConsumerWrapper<String, String> consumerWrapper;
   private volatile Set<String> entitledTenants;
   private final AtomicInteger entitlementsFailuresRemaining = new AtomicInteger(0);
   private volatile long entitlementsResponseDelayMs = 0;
@@ -120,7 +121,9 @@ class TenantEntitlementFilteringIntegrationTest {
     System.clearProperty(TenantEntitlementFilterProperties.TENANT_DISABLED_STRATEGY);
     System.clearProperty(TenantEntitlementFilterProperties.ALL_TENANTS_DISABLED_STRATEGY);
 
-    producer.close()
+    Future<Void> stopWrapper = consumerWrapper == null ? Future.succeededFuture() : consumerWrapper.stop();
+    stopWrapper.otherwise((Void) null)
+      .compose(v -> producer.close())
       .compose(v -> entitlementsServer.close())
       .onComplete(x -> {
         kafka.stop();
@@ -184,7 +187,7 @@ class TenantEntitlementFilteringIntegrationTest {
 
   private List<String> startConsumerCollectingHandledKeys(String eventType) throws Exception {
     List<String> handledKeys = new CopyOnWriteArrayList<>();
-    KafkaConsumerWrapper<String, String> consumerWrapper = KafkaConsumerWrapper.<String, String>builder()
+    consumerWrapper = KafkaConsumerWrapper.<String, String>builder()
       .context(vertx.getOrCreateContext())
       .vertx(vertx)
       .kafkaConfig(kafkaConfig)
@@ -238,7 +241,7 @@ class TenantEntitlementFilteringIntegrationTest {
     @SuppressWarnings("unchecked")
     ProcessRecordErrorHandler<String, String> errorHandler = mock(ProcessRecordErrorHandler.class);
 
-    KafkaConsumerWrapper<String, String> consumerWrapper = KafkaConsumerWrapper.<String, String>builder()
+    consumerWrapper = KafkaConsumerWrapper.<String, String>builder()
       .context(vertx.getOrCreateContext())
       .vertx(vertx)
       .kafkaConfig(kafkaConfig)
@@ -268,7 +271,7 @@ class TenantEntitlementFilteringIntegrationTest {
     @SuppressWarnings("unchecked")
     ProcessRecordErrorHandler<String, String> errorHandler = mock(ProcessRecordErrorHandler.class);
 
-    KafkaConsumerWrapper<String, String> consumerWrapper = KafkaConsumerWrapper.<String, String>builder()
+    consumerWrapper = KafkaConsumerWrapper.<String, String>builder()
       .context(vertx.getOrCreateContext())
       .vertx(vertx)
       .kafkaConfig(kafkaConfig)
