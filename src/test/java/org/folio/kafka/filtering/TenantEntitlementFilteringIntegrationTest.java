@@ -145,6 +145,24 @@ class TenantEntitlementFilteringIntegrationTest {
     testContext.completeNow();
   }
 
+  /** A malformed entitlement event is logged and skipped, without breaking subsequent processing. */
+  @Test
+  void shouldIgnoreMalformedEntitlementEvent_andKeepProcessingLiveEvents(VertxTestContext testContext)
+    throws Exception {
+    String eventType = "shouldIgnoreMalformedEntitlementEvent";
+    String topicName = KafkaTopicNameHelper.formatTopicName(env, getDefaultNameSpace(), "diku", eventType);
+    List<String> handledTenants = startConsumerCollectingHandledKeys(eventType);
+
+    assertEntitledTenantIsHandled(topicName, handledTenants);
+    assertNonEntitledTenantIsSkipped(topicName, handledTenants);
+
+    publishRawEntitlementRecord("bad", "not-valid-json").toCompletionStage().toCompletableFuture().get(10, SECONDS);
+
+    assertLiveEntitlementEventUnblocksTenant(topicName, handledTenants);
+
+    testContext.completeNow();
+  }
+
   /** A non-entitled tenant's record racing the slow initial load waits for, and honors, the real answer. */
   @Test
   void shouldSkipNonEntitledTenant_whenFirstRecordRacesTheEntitlementLoad(VertxTestContext testContext)
@@ -316,6 +334,12 @@ class TenantEntitlementFilteringIntegrationTest {
     String json = "{\"moduleId\":\"%s\",\"tenantName\":\"%s\",\"type\":\"%s\"}".formatted(moduleId, tenant, type);
     KafkaProducerRecord<String, String> producerRecord =
       KafkaProducerRecord.create(env + ".entitlement", tenant, json);
+    return producer.send(producerRecord).mapEmpty();
+  }
+
+  private Future<Void> publishRawEntitlementRecord(String key, String payload) {
+    KafkaProducerRecord<String, String> producerRecord =
+      KafkaProducerRecord.create(env + ".entitlement", key, payload);
     return producer.send(producerRecord).mapEmpty();
   }
 }
