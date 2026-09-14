@@ -111,8 +111,7 @@ class TenantEntitlementFilterTest {
   }
 
   @Test
-  void shouldSkip_shouldApplyAllTenantsDisabledStrategy_whenCacheNeverPopulatesWithinTheBoundedWait()
-    throws Exception {
+  void shouldSkip_shouldApplyAllTenantsDisabledStrategy_whenCacheNeverPopulatesWithinTheBoundedWait() {
     when(service.getEnabledTenants()).thenReturn(null);
     var filter = filter(DisabledTenantStrategy.SKIP, DisabledTenantStrategy.FAIL);
 
@@ -149,8 +148,8 @@ class TenantEntitlementFilterTest {
 
   @SuppressWarnings("unchecked")
   private KafkaConsumerRecord<String, String> recordWithHeaders(List<KafkaHeader> headers) {
-    KafkaConsumerRecord<String, String> record = mock(KafkaConsumerRecord.class);
-    when(record.headers()).thenReturn(headers);
-    return record;
+    KafkaConsumerRecord<String, String> consumerRecord = mock(KafkaConsumerRecord.class);
+    when(consumerRecord.headers()).thenReturn(headers);
+    return consumerRecord;
   }
 }

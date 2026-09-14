@@ -166,9 +166,9 @@ class TenantEntitlementFilteringIntegrationTest {
       .subscriptionDefinition(KafkaTopicNameHelper.createSubscriptionDefinition(env, getDefaultNameSpace(), eventType))
       .build();
 
-    consumerWrapper.start(record -> {
-      handledKeys.add(record.key());
-      return Future.succeededFuture(record.key());
+    consumerWrapper.start(consumerRecord -> {
+      handledKeys.add(consumerRecord.key());
+      return Future.succeededFuture(consumerRecord.key());
     }, moduleId, moduleId).toCompletionStage().toCompletableFuture().get(10, SECONDS);
 
     return handledKeys;
@@ -219,7 +219,7 @@ class TenantEntitlementFilteringIntegrationTest {
       .processRecordErrorHandler(errorHandler)
       .build();
 
-    consumerWrapper.start(record -> Future.succeededFuture(record.key()), moduleId, moduleId)
+    consumerWrapper.start(consumerRecord -> Future.succeededFuture(consumerRecord.key()), moduleId, moduleId)
       .toCompletionStage().toCompletableFuture().get(10, SECONDS);
 
     // Resend until the initial /entitlements/modules/{id} lookup (entitledTenants = {}) has landed;
@@ -256,7 +256,7 @@ class TenantEntitlementFilteringIntegrationTest {
       .processRecordErrorHandler(errorHandler)
       .build();
 
-    consumerWrapper.start(record -> Future.succeededFuture(record.key()), moduleId, moduleId)
+    consumerWrapper.start(consumerRecord -> Future.succeededFuture(consumerRecord.key()), moduleId, moduleId)
       .toCompletionStage().toCompletableFuture().get(10, SECONDS);
 
     resendUntilEntitlementsLoad(topicName);
@@ -279,16 +279,16 @@ class TenantEntitlementFilteringIntegrationTest {
   }
 
   private Future<Void> sendRecord(String topicName, String key, String tenant) {
-    KafkaProducerRecord<String, String> record = KafkaProducerRecord.create(topicName, key, "payload");
-    record.addHeader(TENANT, tenant);
-    return producer.send(record).mapEmpty();
+    KafkaProducerRecord<String, String> producerRecord = KafkaProducerRecord.create(topicName, key, "payload");
+    producerRecord.addHeader(TENANT, tenant);
+    return producer.send(producerRecord).mapEmpty();
   }
 
   private Future<Void> publishEntitlementEvent(String tenant, EntitlementEvent.Type type) {
     String json = "{\"moduleId\":\"%s\",\"tenantName\":\"%s\",\"type\":\"%s\"}".formatted(moduleId, tenant, type);
-    KafkaProducerRecord<String, String> record =
+    KafkaProducerRecord<String, String> producerRecord =
       KafkaProducerRecord.create(env + ".entitlement", tenant, json);
-    return producer.send(record).mapEmpty();
+    return producer.send(producerRecord).mapEmpty();
   }
 
   private void awaitCondition(java.util.function.BooleanSupplier condition, long timeoutMs) throws Exception {
