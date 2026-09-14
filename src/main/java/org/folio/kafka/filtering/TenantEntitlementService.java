@@ -76,6 +76,12 @@ public class TenantEntitlementService {
       return;
     }
 
+    if (event.getType() == null) {
+      log.warn("Ignoring entitlement event with missing type: moduleId = {}, tenant = {}",
+        moduleId, event.getTenantName());
+      return;
+    }
+
     var updated = enabledTenants.updateAndGet(current -> {
       if (current == null) {
         return null;
@@ -90,7 +96,7 @@ public class TenantEntitlementService {
       return Set.copyOf(next);
     });
 
-    log.info("Applied entitlement change event: moduleId = {}, tenant = {}, type = {}, enabledTenants = {}",
-      moduleId, event.getTenantName(), event.getType(), updated);
+    log.info("Applied entitlement change event: moduleId = {}, tenant = {}, type = {}, enabledTenantCount = {}",
+      moduleId, event.getTenantName(), event.getType(), updated == null ? 0 : updated.size());
   }
 }

@@ -114,6 +114,19 @@ class TenantEntitlementServiceTest {
     assertEquals(Set.of("diku"), service.getEnabledTenants());
   }
 
+  @Test
+  void applyEntitlementEvent_shouldBeIgnored_whenTypeIsMissing() {
+    when(client.lookupTenantsByModuleId(MODULE_ID)).thenReturn(Future.succeededFuture(Set.of("diku")));
+    service.refresh();
+
+    var event = new EntitlementEvent();
+    event.setModuleId(MODULE_ID);
+    event.setTenantName("college");
+    service.applyEntitlementEvent(event);
+
+    assertEquals(Set.of("diku"), service.getEnabledTenants());
+  }
+
   private static EntitlementEvent entitleEvent(String tenant) {
     var event = new EntitlementEvent();
     event.setModuleId(MODULE_ID);
