@@ -9,6 +9,9 @@ import org.folio.kafka.KafkaConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class TenantEntitlementFilterProviderTest {
 
@@ -53,6 +56,15 @@ class TenantEntitlementFilterProviderTest {
     System.clearProperty(TenantEntitlementFilterProperties.ENABLED);
 
     var filter = TenantEntitlementFilterProvider.getOrCreate(vertx, kafkaConfig, MODULE_ID);
+
+    assertNull(filter);
+  }
+
+  @ParameterizedTest
+  @NullAndEmptySource
+  @ValueSource(strings = " ")
+  void getOrCreate_shouldReturnNull_whenModuleIdIsBlank(String blankModuleId) {
+    var filter = TenantEntitlementFilterProvider.getOrCreate(vertx, kafkaConfig, blankModuleId);
 
     assertNull(filter);
   }

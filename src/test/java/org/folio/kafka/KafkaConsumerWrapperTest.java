@@ -36,6 +36,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.testcontainers.kafka.KafkaContainer;
 
 @ExtendWith(VertxExtension.class)
@@ -186,8 +189,11 @@ class KafkaConsumerWrapperTest {
     future.onComplete(testContext.failingThenComplete());
   }
 
-  @Test
-  void shouldReturnFailedFutureWhenModuleIdIsNotValidAndFilteringEnabled(VertxTestContext testContext) {
+  @ParameterizedTest
+  @NullAndEmptySource
+  @ValueSource(strings = {" ", "not-a-valid-module-id", "mod-foo-1.x.0"})
+  void shouldReturnFailedFutureWhenModuleIdIsNotValidAndFilteringEnabled(String invalidModuleId,
+    VertxTestContext testContext) {
     System.setProperty(TenantEntitlementFilterProperties.ENABLED, "true");
     try {
       SubscriptionDefinition subscriptionDefinition =
@@ -201,9 +207,32 @@ class KafkaConsumerWrapperTest {
         .build();
 
       Future<Void> future = kafkaConsumerWrapper.start(event -> Future.succeededFuture(event.key()),
-        MODULE_NAME, "not-a-valid-module-id");
+        MODULE_NAME, invalidModuleId);
 
       future.onComplete(testContext.failingThenComplete());
+    } finally {
+      System.clearProperty(TenantEntitlementFilterProperties.ENABLED);
+    }
+  }
+
+  @Test
+  void shouldReturnSucceededFutureWhenModuleIdIsValidAndFilteringEnabled(VertxTestContext testContext) {
+    System.setProperty(TenantEntitlementFilterProperties.ENABLED, "true");
+    try {
+      SubscriptionDefinition subscriptionDefinition =
+        KafkaTopicNameHelper.createSubscriptionDefinition(KAFKA_ENV, getDefaultNameSpace(), eventType());
+      KafkaConsumerWrapper<String, String> kafkaConsumerWrapper = KafkaConsumerWrapper.<String, String>builder()
+        .context(vertx.getOrCreateContext())
+        .vertx(vertx)
+        .kafkaConfig(kafkaConfig)
+        .loadLimit(5)
+        .subscriptionDefinition(subscriptionDefinition)
+        .build();
+
+      Future<Void> future = kafkaConsumerWrapper.start(event -> Future.succeededFuture(event.key()),
+        MODULE_NAME, "mod-foo-1.0.0");
+
+      future.onComplete(testContext.succeedingThenComplete());
     } finally {
       System.clearProperty(TenantEntitlementFilterProperties.ENABLED);
     }
