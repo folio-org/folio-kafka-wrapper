@@ -46,6 +46,8 @@ import org.testcontainers.kafka.KafkaContainer;
 @ExtendWith(VertxExtension.class)
 class TenantEntitlementFilteringIntegrationTest {
 
+  private static final AtomicInteger MODULE_VERSION_COUNTER = new AtomicInteger();
+
   private final Vertx vertx = Vertx.vertx();
   private final KafkaContainer kafka = new KafkaContainer("apache/kafka-native:4.2.0").withStartupAttempts(3);
 
@@ -62,7 +64,7 @@ class TenantEntitlementFilteringIntegrationTest {
   void setUp() throws Exception {
     kafka.start();
 
-    moduleId = "mod-filter-test-" + UUID.randomUUID();
+    moduleId = "mod-filter-test-1.0." + MODULE_VERSION_COUNTER.incrementAndGet();
     env = "it" + UUID.randomUUID().toString().substring(0, 8);
     entitledTenants = Set.of("diku");
 
