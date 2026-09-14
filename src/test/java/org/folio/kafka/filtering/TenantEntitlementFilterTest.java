@@ -17,6 +17,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.folio.kafka.headers.FolioKafkaHeaders;
 import org.folio.okapi.common.XOkapiHeaders;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -47,6 +48,16 @@ class TenantEntitlementFilterTest {
     var filter = filter(DisabledTenantStrategy.SKIP, DisabledTenantStrategy.FAIL);
 
     assertFalse(await(filter.shouldSkip(recordWithHeaders(List.of()))));
+  }
+
+  @Test
+  void shouldSkip_shouldUseFolioTenantIdHeader_whenOkapiTenantHeaderMissing() throws Exception {
+    when(service.getEnabledTenants()).thenReturn(Set.of("college"));
+    var filter = filter(DisabledTenantStrategy.SKIP, DisabledTenantStrategy.FAIL);
+
+    var consumerRecord = recordWithHeaders(List.of(KafkaHeader.header(FolioKafkaHeaders.TENANT_ID, "diku")));
+
+    assertTrue(await(filter.shouldSkip(consumerRecord)), "record for non-entitled tenant 'diku' should be skipped");
   }
 
   @Test
