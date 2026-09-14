@@ -98,7 +98,7 @@ class KafkaConsumerWrapperTest {
       .subscriptionDefinition(subscriptionDefinition)
       .build();
 
-    kafkaConsumerWrapper.start(event -> Future.succeededFuture(event.key()), MODULE_NAME);
+    kafkaConsumerWrapper.start(event -> Future.succeededFuture(event.key()), MODULE_NAME, MODULE_NAME);
     assertFalse(kafkaConsumerWrapper.isConsumerPaused());
     kafkaConsumerWrapper.pause();
     assertTrue(kafkaConsumerWrapper.isConsumerPaused());
@@ -148,7 +148,7 @@ class KafkaConsumerWrapperTest {
       .subscriptionDefinition(subscriptionDefinition)
       .build();
 
-    Future<Void> future = kafkaConsumerWrapper.start(null, MODULE_NAME);
+    Future<Void> future = kafkaConsumerWrapper.start(null, MODULE_NAME, MODULE_NAME);
 
     future.onComplete(testContext.failingThenComplete());
   }
@@ -162,7 +162,8 @@ class KafkaConsumerWrapperTest {
       .subscriptionDefinition(null)
       .build();
 
-    Future<Void> future = kafkaConsumerWrapper.start(event -> Future.succeededFuture(event.key()), MODULE_NAME);
+    Future<Void> future = kafkaConsumerWrapper.start(event -> Future.succeededFuture(event.key()),
+      MODULE_NAME, MODULE_NAME);
 
     future.onComplete(testContext.failingThenComplete());
   }
@@ -179,7 +180,8 @@ class KafkaConsumerWrapperTest {
       .subscriptionDefinition(subscriptionDefinition)
       .build();
 
-    Future<Void> future = kafkaConsumerWrapper.start(event -> Future.succeededFuture(event.key()), MODULE_NAME);
+    Future<Void> future = kafkaConsumerWrapper.start(event -> Future.succeededFuture(event.key()),
+      MODULE_NAME, MODULE_NAME);
 
     future.onComplete(testContext.failingThenComplete());
   }
@@ -223,7 +225,7 @@ class KafkaConsumerWrapperTest {
       .build();
 
     awaitMembersSize(groupId, 0)
-      .compose(v -> kafkaConsumerWrapper.start(event -> Future.succeededFuture(event.key()), MODULE_NAME))
+      .compose(v -> kafkaConsumerWrapper.start(event -> Future.succeededFuture(event.key()), MODULE_NAME, MODULE_NAME))
       .compose(v -> awaitMembersSize(groupId, 1))
       .compose(v -> kafkaConsumerWrapper.stop())
       .compose(v -> awaitMembersSize(groupId, 0))
@@ -256,7 +258,7 @@ class KafkaConsumerWrapperTest {
       .processRecordErrorHandler(recordErrorHandler)
       .build();
 
-    kafkaConsumerWrapper.start(r -> Future.failedFuture("test error msg"), MODULE_NAME)
+    kafkaConsumerWrapper.start(r -> Future.failedFuture("test error msg"), MODULE_NAME, MODULE_NAME)
       .eventually(() -> sendRecord("1", "test_payload", topicName));
 
     assertTrue(testContext.awaitCompletion(10, TimeUnit.SECONDS));
@@ -282,12 +284,12 @@ class KafkaConsumerWrapperTest {
 
     consumerWrapperBuilder.groupInstanceId(emptyStringGroupInstanceId)
       .build()
-      .start(kafkaRecord -> Future.succeededFuture(kafkaRecord.key()), MODULE_NAME)
+      .start(kafkaRecord -> Future.succeededFuture(kafkaRecord.key()), MODULE_NAME, MODULE_NAME)
       .onComplete(testContext.failing(t -> checkpoint.flag()));
 
     consumerWrapperBuilder.groupInstanceId(blankStringGroupInstanceId)
       .build()
-      .start(kafkaRecord -> Future.succeededFuture(kafkaRecord.key()), MODULE_NAME)
+      .start(kafkaRecord -> Future.succeededFuture(kafkaRecord.key()), MODULE_NAME, MODULE_NAME)
       .onComplete(testContext.failing(t -> checkpoint.flag()));
   }
 
@@ -319,7 +321,7 @@ class KafkaConsumerWrapperTest {
         promise.complete(pauseCount.get());
       }
       return Future.future(timer -> vertx.setTimer(20, x -> timer.complete(r.key())));
-    }, MODULE_NAME));
+    }, MODULE_NAME, MODULE_NAME));
     return promise.future();
   }
 
