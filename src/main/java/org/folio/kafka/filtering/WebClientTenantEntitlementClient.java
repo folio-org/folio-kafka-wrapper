@@ -20,15 +20,28 @@ public class WebClientTenantEntitlementClient implements TenantEntitlementClient
   private final WebClient webClient;
   private final String okapiUrl;
 
+  /**
+   * Bounds a stuck lookup (connection accepted but no response) so it fails instead of hanging
+   * forever, letting the caller's retry-with-backoff logic run. Configured via
+   * {@link TenantEntitlementFilterProperties#ENTITLEMENT_LOOKUP_TIMEOUT_SECONDS}.
+   */
+  private final long requestTimeoutMs;
+
   public WebClientTenantEntitlementClient(Vertx vertx, String okapiUrl) {
+    this(vertx, okapiUrl, TenantEntitlementFilterProperties.entitlementLookupTimeoutMs());
+  }
+
+  WebClientTenantEntitlementClient(Vertx vertx, String okapiUrl, long requestTimeoutMs) {
     this.webClient = WebClient.create(vertx);
     this.okapiUrl = okapiUrl;
+    this.requestTimeoutMs = requestTimeoutMs;
   }
 
   @Override
   public Future<Set<String>> lookupTenantsByModuleId(String moduleId) {
     var url = okapiUrl + PATH_TEMPLATE.formatted(moduleId);
     return webClient.getAbs(url)
+      .timeout(requestTimeoutMs)
       .send()
       .compose(response -> {
         if (response.statusCode() != 200) {
