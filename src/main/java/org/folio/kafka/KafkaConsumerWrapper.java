@@ -187,10 +187,6 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
     return failureMessage;
   }
 
-  /**
-   * Uses okapi-common's {@link ModuleId} - the same parser Okapi/Eureka use elsewhere - to check that
-   * {@code moduleId} has a {@code <artifactId>-<version>} shape rather than inventing our own format rules.
-   */
   private static boolean isValidModuleId(String moduleId) {
     if (StringUtils.isBlank(moduleId)) {
       return false;

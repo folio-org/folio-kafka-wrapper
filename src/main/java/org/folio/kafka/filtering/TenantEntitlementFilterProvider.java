@@ -26,7 +26,7 @@ import org.folio.kafka.services.KafkaEnvironmentProperties;
 public final class TenantEntitlementFilterProvider {
 
   private static final Logger LOGGER = LogManager.getLogger();
-  private static final Map<String, TenantEntitlementFilter> FILTERS = new ConcurrentHashMap<>();
+  private static final Map<String, TenantEntitlementFilter> FILTERS_BY_MODULE_ID = new ConcurrentHashMap<>();
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   /**
@@ -58,7 +58,7 @@ public final class TenantEntitlementFilterProvider {
       return null;
     }
 
-    return FILTERS.computeIfAbsent(moduleId, id -> createFilter(vertx, kafkaConfig, id));
+    return FILTERS_BY_MODULE_ID.computeIfAbsent(moduleId, id -> createFilter(vertx, kafkaConfig, id));
   }
 
   private static TenantEntitlementFilter createFilter(Vertx vertx, KafkaConfig kafkaConfig, String moduleId) {
