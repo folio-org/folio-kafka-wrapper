@@ -30,11 +30,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.common.errors.GroupIdNotFoundException;
+import org.folio.kafka.filtering.TenantEntitlementFilterProperties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.testcontainers.kafka.KafkaContainer;
 
 @ExtendWith(VertxExtension.class)
@@ -97,7 +101,7 @@ class KafkaConsumerWrapperTest {
       .subscriptionDefinition(subscriptionDefinition)
       .build();
 
-    kafkaConsumerWrapper.start(event -> Future.succeededFuture(event.key()), MODULE_NAME);
+    kafkaConsumerWrapper.start(event -> Future.succeededFuture(event.key()), MODULE_NAME, MODULE_NAME);
     assertFalse(kafkaConsumerWrapper.isConsumerPaused());
     kafkaConsumerWrapper.pause();
     assertTrue(kafkaConsumerWrapper.isConsumerPaused());
@@ -147,7 +151,7 @@ class KafkaConsumerWrapperTest {
       .subscriptionDefinition(subscriptionDefinition)
       .build();
 
-    Future<Void> future = kafkaConsumerWrapper.start(null, MODULE_NAME);
+    Future<Void> future = kafkaConsumerWrapper.start(null, MODULE_NAME, MODULE_NAME);
 
     future.onComplete(testContext.failingThenComplete());
   }
@@ -161,7 +165,8 @@ class KafkaConsumerWrapperTest {
       .subscriptionDefinition(null)
       .build();
 
-    Future<Void> future = kafkaConsumerWrapper.start(event -> Future.succeededFuture(event.key()), MODULE_NAME);
+    Future<Void> future = kafkaConsumerWrapper.start(event -> Future.succeededFuture(event.key()),
+      MODULE_NAME, MODULE_NAME);
 
     future.onComplete(testContext.failingThenComplete());
   }
@@ -178,9 +183,59 @@ class KafkaConsumerWrapperTest {
       .subscriptionDefinition(subscriptionDefinition)
       .build();
 
-    Future<Void> future = kafkaConsumerWrapper.start(event -> Future.succeededFuture(event.key()), MODULE_NAME);
+    Future<Void> future = kafkaConsumerWrapper.start(event -> Future.succeededFuture(event.key()),
+      MODULE_NAME, MODULE_NAME);
 
     future.onComplete(testContext.failingThenComplete());
+  }
+
+  @ParameterizedTest
+  @NullAndEmptySource
+  @ValueSource(strings = {" ", "not-a-valid-module-id", "mod-foo-1.x.0"})
+  void shouldReturnFailedFutureWhenModuleIdIsNotValidAndFilteringEnabled(String invalidModuleId,
+    VertxTestContext testContext) {
+    System.setProperty(TenantEntitlementFilterProperties.ENABLED, "true");
+    try {
+      SubscriptionDefinition subscriptionDefinition =
+        KafkaTopicNameHelper.createSubscriptionDefinition(KAFKA_ENV, getDefaultNameSpace(), eventType());
+      KafkaConsumerWrapper<String, String> kafkaConsumerWrapper = KafkaConsumerWrapper.<String, String>builder()
+        .context(vertx.getOrCreateContext())
+        .vertx(vertx)
+        .kafkaConfig(kafkaConfig)
+        .loadLimit(5)
+        .subscriptionDefinition(subscriptionDefinition)
+        .build();
+
+      Future<Void> future = kafkaConsumerWrapper.start(event -> Future.succeededFuture(event.key()),
+        MODULE_NAME, invalidModuleId);
+
+      future.onComplete(testContext.failingThenComplete());
+    } finally {
+      System.clearProperty(TenantEntitlementFilterProperties.ENABLED);
+    }
+  }
+
+  @Test
+  void shouldReturnSucceededFutureWhenModuleIdIsValidAndFilteringEnabled(VertxTestContext testContext) {
+    System.setProperty(TenantEntitlementFilterProperties.ENABLED, "true");
+    try {
+      SubscriptionDefinition subscriptionDefinition =
+        KafkaTopicNameHelper.createSubscriptionDefinition(KAFKA_ENV, getDefaultNameSpace(), eventType());
+      KafkaConsumerWrapper<String, String> kafkaConsumerWrapper = KafkaConsumerWrapper.<String, String>builder()
+        .context(vertx.getOrCreateContext())
+        .vertx(vertx)
+        .kafkaConfig(kafkaConfig)
+        .loadLimit(5)
+        .subscriptionDefinition(subscriptionDefinition)
+        .build();
+
+      Future<Void> future = kafkaConsumerWrapper.start(event -> Future.succeededFuture(event.key()),
+        MODULE_NAME, "mod-foo-1.0.0");
+
+      future.onComplete(testContext.succeedingThenComplete());
+    } finally {
+      System.clearProperty(TenantEntitlementFilterProperties.ENABLED);
+    }
   }
 
   @Test
@@ -199,7 +254,7 @@ class KafkaConsumerWrapperTest {
       .build();
 
     awaitMembersSize(groupId, 0)
-      .compose(v -> kafkaConsumerWrapper.start(event -> Future.succeededFuture(event.key()), MODULE_NAME))
+      .compose(v -> kafkaConsumerWrapper.start(event -> Future.succeededFuture(event.key()), MODULE_NAME, MODULE_NAME))
       .compose(v -> awaitMembersSize(groupId, 1))
       .compose(v -> kafkaConsumerWrapper.stop())
       .compose(v -> awaitMembersSize(groupId, 0))
@@ -232,7 +287,7 @@ class KafkaConsumerWrapperTest {
       .processRecordErrorHandler(recordErrorHandler)
       .build();
 
-    kafkaConsumerWrapper.start(r -> Future.failedFuture("test error msg"), MODULE_NAME)
+    kafkaConsumerWrapper.start(r -> Future.failedFuture("test error msg"), MODULE_NAME, MODULE_NAME)
       .eventually(() -> sendRecord("1", "test_payload", topicName));
 
     assertTrue(testContext.awaitCompletion(10, TimeUnit.SECONDS));
@@ -258,12 +313,12 @@ class KafkaConsumerWrapperTest {
 
     consumerWrapperBuilder.groupInstanceId(emptyStringGroupInstanceId)
       .build()
-      .start(kafkaRecord -> Future.succeededFuture(kafkaRecord.key()), MODULE_NAME)
+      .start(kafkaRecord -> Future.succeededFuture(kafkaRecord.key()), MODULE_NAME, MODULE_NAME)
       .onComplete(testContext.failing(t -> checkpoint.flag()));
 
     consumerWrapperBuilder.groupInstanceId(blankStringGroupInstanceId)
       .build()
-      .start(kafkaRecord -> Future.succeededFuture(kafkaRecord.key()), MODULE_NAME)
+      .start(kafkaRecord -> Future.succeededFuture(kafkaRecord.key()), MODULE_NAME, MODULE_NAME)
       .onComplete(testContext.failing(t -> checkpoint.flag()));
   }
 
@@ -295,7 +350,7 @@ class KafkaConsumerWrapperTest {
         promise.complete(pauseCount.get());
       }
       return Future.future(timer -> vertx.setTimer(20, x -> timer.complete(r.key())));
-    }, MODULE_NAME));
+    }, MODULE_NAME, MODULE_NAME));
     return promise.future();
   }
 
