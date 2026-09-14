@@ -6,6 +6,7 @@ import static org.folio.okapi.common.XOkapiHeaders.TENANT;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -18,12 +19,14 @@ import io.vertx.junit5.VertxTestContext;
 import io.vertx.kafka.client.consumer.KafkaConsumerRecord;
 import io.vertx.kafka.client.producer.KafkaProducer;
 import io.vertx.kafka.client.producer.KafkaProducerRecord;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.awaitility.Awaitility;
 import org.folio.kafka.GlobalLoadSensor;
 import org.folio.kafka.KafkaConfig;
 import org.folio.kafka.KafkaConsumerWrapper;
@@ -123,6 +126,7 @@ class TenantEntitlementFilteringIntegrationTest {
       });
   }
 
+  /** Happy path: entitled tenant handled, non-entitled tenant skipped, then unblocked by a live event. */
   @Test
   void shouldSkipNonEntitledTenantAndHonorLiveEntitlementUpdates(VertxTestContext testContext) throws Exception {
     String eventType = "shouldSkipNonEntitledTenant";
@@ -136,21 +140,42 @@ class TenantEntitlementFilteringIntegrationTest {
     testContext.completeNow();
   }
 
+  /** A non-entitled tenant's record racing the slow initial load waits for, and honors, the real answer. */
   @Test
-  void shouldWaitForRealAnswer_whenFirstRecordRacesTheEntitlementLoad(VertxTestContext testContext) throws Exception {
+  void shouldSkipNonEntitledTenant_whenFirstRecordRacesTheEntitlementLoad(VertxTestContext testContext)
+    throws Exception {
     entitledTenants = Set.of("diku");
     entitlementsResponseDelayMs = 1000;
-    String eventType = "shouldWaitForRealAnswer";
+    String eventType = "shouldSkipNonEntitledTenantRacing";
     String topicName = KafkaTopicNameHelper.formatTopicName(env, getDefaultNameSpace(), "college", eventType);
     List<String> handledTenants = startConsumerCollectingHandledKeys(eventType);
 
-    // Sent immediately, so this races the deliberately slow initial /entitlements/modules/{id}
-    // lookup. The record should wait for the real (non-entitled) answer instead of being accepted
-    // unfiltered just because the cache wasn't populated yet.
+    // Sent immediately, so this races the deliberately slow initial /entitlements/modules/{id} lookup. The record
+    // should wait for the real (non-entitled) answer instead of being accepted unfiltered just because the cache
+    // wasn't populated yet.
     sendRecord(topicName, "college", "college").toCompletionStage().toCompletableFuture().get(10, SECONDS);
-    Thread.sleep(2000);
+    Awaitility.await().pollDelay(Duration.ofSeconds(2)).until(() -> true);
     assertFalse(handledTenants.contains("college"),
       "record racing the entitlement load should wait for and honor the real, non-entitled answer");
+
+    testContext.completeNow();
+  }
+
+  /** An entitled tenant's record racing the slow initial load waits for, and honors, the real answer. */
+  @Test
+  void shouldHandleEntitledTenant_whenFirstRecordRacesTheEntitlementLoad(VertxTestContext testContext)
+    throws Exception {
+    entitledTenants = Set.of("diku");
+    entitlementsResponseDelayMs = 1000;
+    String eventType = "shouldHandleEntitledTenantRacing";
+    String topicName = KafkaTopicNameHelper.formatTopicName(env, getDefaultNameSpace(), "diku", eventType);
+    List<String> handledTenants = startConsumerCollectingHandledKeys(eventType);
+
+    // Sent immediately, so this races the deliberately slow initial /entitlements/modules/{id} lookup. The record
+    // should wait for the real (entitled) answer instead of being skipped just because the cache wasn't populated yet.
+    sendRecord(topicName, "diku", "diku").toCompletionStage().toCompletableFuture().get(10, SECONDS);
+    Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> assertTrue(handledTenants.contains("diku"),
+      "record racing the entitlement load should wait for and honor the real, entitled answer"));
 
     testContext.completeNow();
   }
@@ -177,14 +202,15 @@ class TenantEntitlementFilteringIntegrationTest {
   private void assertEntitledTenantIsHandled(String topicName, List<String> handledTenants) throws Exception {
     // "diku" is entitled from the start, so this also confirms the pipeline (consumer + filter) is up.
     sendRecord(topicName, "diku", "diku").toCompletionStage().toCompletableFuture().get(10, SECONDS);
-    awaitCondition(() -> handledTenants.contains("diku"), 10000);
-    assertTrue(handledTenants.contains("diku"), "message for entitled tenant 'diku' should be handled");
+    Awaitility.await().atMost(Duration.ofSeconds(10))
+      .untilAsserted(() -> assertTrue(handledTenants.contains("diku"),
+        "message for entitled tenant 'diku' should be handled"));
   }
 
   private void assertNonEntitledTenantIsSkipped(String topicName, List<String> handledTenants) throws Exception {
     // By now the initial /entitlements/modules/{id} lookup has resolved, so a non-entitled tenant is filtered.
     sendRecord(topicName, "college", "college").toCompletionStage().toCompletableFuture().get(10, SECONDS);
-    Thread.sleep(2000);
+    Awaitility.await().pollDelay(Duration.ofSeconds(2)).until(() -> true);
     assertFalse(handledTenants.contains("college"), "message for non-entitled tenant 'college' should be skipped");
   }
 
@@ -192,14 +218,15 @@ class TenantEntitlementFilteringIntegrationTest {
     throws Exception {
     publishEntitlementEvent("college", EntitlementEvent.Type.ENTITLE)
       .toCompletionStage().toCompletableFuture().get(10, SECONDS);
-    awaitCondition(() -> {
-      sendRecord(topicName, "college", "college");
-      return handledTenants.contains("college");
-    }, 15000);
-    assertTrue(handledTenants.contains("college"),
-      "message for tenant entitled via a live entitlement event should now be handled");
+    Awaitility.await().atMost(Duration.ofSeconds(15)).pollInterval(Duration.ofMillis(200))
+      .untilAsserted(() -> {
+        sendRecord(topicName, "college", "college");
+        assertTrue(handledTenants.contains("college"),
+          "message for tenant entitled via a live entitlement event should now be handled");
+      });
   }
 
+  /** Once the cache loads as empty, FAIL strategy routes records to the error handler. */
   @Test
   void shouldRouteToErrorHandler_whenAllTenantsDisabledStrategyIsFail(VertxTestContext testContext) throws Exception {
     entitledTenants = Set.of();
@@ -222,19 +249,12 @@ class TenantEntitlementFilteringIntegrationTest {
     consumerWrapper.start(consumerRecord -> Future.succeededFuture(consumerRecord.key()), moduleId, moduleId)
       .toCompletionStage().toCompletableFuture().get(10, SECONDS);
 
-    // Resend until the initial /entitlements/modules/{id} lookup (entitledTenants = {}) has landed;
-    // before that, the filter fails open and the record is handled normally instead of erroring.
-    for (int i = 0; i < 20; i++) {
-      sendRecord(topicName, "diku-" + i, "diku").toCompletionStage().toCompletableFuture().get(10, SECONDS);
-      Thread.sleep(300);
-    }
-
-    verify(errorHandler, org.mockito.Mockito.timeout(5000).atLeastOnce())
-      .handle(any(TenantsAreDisabledException.class), any(KafkaConsumerRecord.class));
+    resendUntilFailStrategyApplies(topicName, errorHandler);
 
     testContext.completeNow();
   }
 
+  /** A sidecar 503 on the first lookup is retried with backoff instead of failing open forever. */
   @Test
   void shouldRetryInitialLoad_whenSidecarRespondsNotYetLoaded(VertxTestContext testContext) throws Exception {
     entitledTenants = Set.of();
@@ -259,23 +279,26 @@ class TenantEntitlementFilteringIntegrationTest {
     consumerWrapper.start(consumerRecord -> Future.succeededFuture(consumerRecord.key()), moduleId, moduleId)
       .toCompletionStage().toCompletableFuture().get(10, SECONDS);
 
-    resendUntilEntitlementsLoad(topicName);
-
-    verify(errorHandler, org.mockito.Mockito.timeout(6000).atLeastOnce())
-      .handle(any(TenantsAreDisabledException.class), any(KafkaConsumerRecord.class));
+    resendUntilFailStrategyApplies(topicName, errorHandler);
 
     testContext.completeNow();
   }
 
   /**
-   * The periodic reconciliation is configured for 1 hour (see {@link #setFilterSystemProperties()}), so
-   * any success within this short resend window must come from the initial-load retry, not that timer.
+   * Resends records to {@code topicName} until {@code errorHandler} observes a
+   * {@link TenantsAreDisabledException}. The periodic reconciliation is configured for 1 hour (see
+   * {@link #setFilterSystemProperties()}), so success within this short window must come from the
+   * initial-load retry, not that timer.
    */
-  private void resendUntilEntitlementsLoad(String topicName) throws Exception {
-    for (int i = 0; i < 15; i++) {
+  private void resendUntilFailStrategyApplies(String topicName, ProcessRecordErrorHandler<String, String> errorHandler)
+    throws Exception {
+    for (int i = 0; i < 20; i++) {
       sendRecord(topicName, "diku-" + i, "diku").toCompletionStage().toCompletableFuture().get(10, SECONDS);
-      Thread.sleep(300);
+      Awaitility.await().pollDelay(Duration.ofMillis(300)).until(() -> true);
     }
+
+    Awaitility.await().atMost(Duration.ofSeconds(6)).untilAsserted(() -> verify(errorHandler, atLeastOnce())
+      .handle(any(TenantsAreDisabledException.class), any(KafkaConsumerRecord.class)));
   }
 
   private Future<Void> sendRecord(String topicName, String key, String tenant) {
@@ -289,15 +312,5 @@ class TenantEntitlementFilteringIntegrationTest {
     KafkaProducerRecord<String, String> producerRecord =
       KafkaProducerRecord.create(env + ".entitlement", tenant, json);
     return producer.send(producerRecord).mapEmpty();
-  }
-
-  private void awaitCondition(java.util.function.BooleanSupplier condition, long timeoutMs) throws Exception {
-    long deadline = System.currentTimeMillis() + timeoutMs;
-    while (System.currentTimeMillis() < deadline) {
-      if (condition.getAsBoolean()) {
-        return;
-      }
-      Thread.sleep(200);
-    }
   }
 }
