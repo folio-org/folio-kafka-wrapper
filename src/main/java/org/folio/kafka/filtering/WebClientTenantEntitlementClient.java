@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
  */
 public class WebClientTenantEntitlementClient implements TenantEntitlementClient {
 
+  @SuppressWarnings("java:S1075")
   private static final String PATH_TEMPLATE = "/entitlements/modules/%s";
 
   private final WebClient webClient;
