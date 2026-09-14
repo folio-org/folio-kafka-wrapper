@@ -25,6 +25,7 @@ import org.folio.kafka.exception.DuplicateEventException;
 import org.folio.kafka.filtering.TenantEntitlementFilter;
 import org.folio.kafka.filtering.TenantEntitlementFilterProperties;
 import org.folio.kafka.filtering.TenantEntitlementFilterProvider;
+import org.folio.okapi.common.ModuleId;
 import org.folio.okapi.common.XOkapiHeaders;
 import org.folio.okapi.common.logging.FolioLocal;
 import org.folio.okapi.common.logging.FolioLoggingContext;
@@ -161,9 +162,9 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
       return logAndReturn("start:: businessHandler must be provided and can't be null.");
     }
 
-    if (TenantEntitlementFilterProperties.isEnabled() && StringUtils.isBlank(moduleId)) {
-      return logAndReturn("start:: Tenant entitlement filtering is enabled but moduleId is blank; pass the "
-        + "module's true entitlements id (e.g. mod-foo-1.2.3) as start()'s moduleId argument.");
+    if (TenantEntitlementFilterProperties.isEnabled() && !isValidModuleId(moduleId)) {
+      return logAndReturn("start:: Tenant entitlement filtering is enabled but moduleId '" + moduleId + "' is not "
+        + "a valid <artifactId>-<version> module id (e.g. mod-foo-1.2.3); pass it as start()'s moduleId argument.");
     }
 
     if (subscriptionDefinition == null || StringUtils.isBlank(subscriptionDefinition.getSubscriptionPattern())) {
@@ -184,6 +185,21 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
   private String logAndReturn(String failureMessage) {
     LOGGER.error(failureMessage);
     return failureMessage;
+  }
+
+  /**
+   * Uses okapi-common's {@link ModuleId} - the same parser Okapi/Eureka use elsewhere - to check that
+   * {@code moduleId} has a {@code <artifactId>-<version>} shape rather than inventing our own format rules.
+   */
+  private static boolean isValidModuleId(String moduleId) {
+    if (StringUtils.isBlank(moduleId)) {
+      return false;
+    }
+    try {
+      return new ModuleId(moduleId).hasSemVer();
+    } catch (IllegalArgumentException e) {
+      return false;
+    }
   }
 
   public void setLoadLimit(int loadLimit) {

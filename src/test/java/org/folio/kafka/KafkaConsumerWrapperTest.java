@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.common.errors.GroupIdNotFoundException;
+import org.folio.kafka.filtering.TenantEntitlementFilterProperties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -181,6 +182,29 @@ class KafkaConsumerWrapperTest {
     Future<Void> future = kafkaConsumerWrapper.start(event -> Future.succeededFuture(event.key()), MODULE_NAME);
 
     future.onComplete(testContext.failingThenComplete());
+  }
+
+  @Test
+  void shouldReturnFailedFutureWhenModuleIdIsNotValidAndFilteringEnabled(VertxTestContext testContext) {
+    System.setProperty(TenantEntitlementFilterProperties.ENABLED, "true");
+    try {
+      SubscriptionDefinition subscriptionDefinition =
+        KafkaTopicNameHelper.createSubscriptionDefinition(KAFKA_ENV, getDefaultNameSpace(), eventType());
+      KafkaConsumerWrapper<String, String> kafkaConsumerWrapper = KafkaConsumerWrapper.<String, String>builder()
+        .context(vertx.getOrCreateContext())
+        .vertx(vertx)
+        .kafkaConfig(kafkaConfig)
+        .loadLimit(5)
+        .subscriptionDefinition(subscriptionDefinition)
+        .build();
+
+      Future<Void> future = kafkaConsumerWrapper.start(event -> Future.succeededFuture(event.key()),
+        MODULE_NAME, "not-a-valid-module-id");
+
+      future.onComplete(testContext.failingThenComplete());
+    } finally {
+      System.clearProperty(TenantEntitlementFilterProperties.ENABLED);
+    }
   }
 
   @Test
