@@ -112,7 +112,7 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
    *
    * @deprecated use {@link #start(AsyncRecordHandler, String, String)} instead.
    */
-  @Deprecated
+  @Deprecated(since = "4.1.0", forRemoval = true)
   public Future<Void> start(AsyncRecordHandler<K, V> businessHandler, String consumerGroupSuffix) {
     return start(businessHandler, consumerGroupSuffix, null);
   }
@@ -263,7 +263,7 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
         LOGGER.error("handle:: Consumer - {} Tenant entitlement filter failed for record - key: {}",
           consumerDescriptor, consumerRecord.key(), ar.cause());
         businessHandlerCompletionHandler(consumerRecord).handle(Future.<K>failedFuture(ar.cause()));
-      } else if (ar.result()) {
+      } else if (Boolean.TRUE.equals(ar.result())) {
         LOGGER.debug("handle:: Consumer - {} Skipping record for non-entitled tenant: key: {}",
           consumerDescriptor, consumerRecord.key());
         businessHandlerCompletionHandler(consumerRecord).handle(Future.<K>succeededFuture(null));
