@@ -83,13 +83,19 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
   @Setter
   private String groupInstanceId;
 
+  /**
+   * Optional per-consumer override for {@link ConsumerConfig#AUTO_OFFSET_RESET_CONFIG}. When omitted,
+   * the value from {@link KafkaConfig} is used.
+   */
+  private final String autoOffsetReset;
+
   @Builder
   private KafkaConsumerWrapper(Vertx vertx, Context context, KafkaConfig kafkaConfig,
                                SubscriptionDefinition subscriptionDefinition, Boolean addToGlobalLoad,
                                GlobalLoadSensor globalLoadSensor,
                                ProcessRecordErrorHandler<K, V> processRecordErrorHandler,
                                BackPressureGauge<Integer, Integer, Integer> backPressureGauge, int loadLimit,
-                               String groupInstanceId) {
+                               String groupInstanceId, String autoOffsetReset) {
     this.vertx = vertx;
     this.context = context;
     this.kafkaConfig = kafkaConfig;
@@ -99,6 +105,7 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
     this.shouldAddToGlobalLoad = addToGlobalLoad != null ? addToGlobalLoad : true;
     this.processRecordErrorHandler = processRecordErrorHandler;
     this.groupInstanceId = groupInstanceId;
+    this.autoOffsetReset = autoOffsetReset;
     this.backPressureGauge = backPressureGauge != null
                              ? backPressureGauge
                              // Just the simplest gauge - if the local load is greater than the threshold and above zero
@@ -140,10 +147,7 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
     this.businessHandler = businessHandler;
     this.entitlementFilter = TenantEntitlementFilterProvider.getOrCreate(vertx, kafkaConfig, moduleId);
 
-    Map<String, String> consumerProps = kafkaConfig.getConsumerProps();
-    consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG,
-      KafkaTopicNameHelper.formatGroupName(subscriptionDefinition.getEventType(), consumerGroupSuffix));
-    consumerProps.put(ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, groupInstanceId);
+    Map<String, String> consumerProps = createConsumerProperties(consumerGroupSuffix);
 
     kafkaConsumer = KafkaConsumer.create(vertx, consumerProps);
 
@@ -155,6 +159,17 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
     return kafkaConsumer.subscribe(pattern)
       .onSuccess(ar -> LOGGER.info("start:: Consumer created - {}", consumerDescriptor))
       .onFailure(throwable -> LOGGER.error("start:: Consumer creation failed", throwable));
+  }
+
+  Map<String, String> createConsumerProperties(String consumerGroupSuffix) {
+    var consumerProps = kafkaConfig.getConsumerProps();
+    consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG,
+      KafkaTopicNameHelper.formatGroupName(subscriptionDefinition.getEventType(), consumerGroupSuffix));
+    consumerProps.put(ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, groupInstanceId);
+    if (StringUtils.isNotBlank(autoOffsetReset)) {
+      consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, autoOffsetReset);
+    }
+    return consumerProps;
   }
 
   private String validateStartParameters(AsyncRecordHandler<K, V> businessHandler, String moduleId) {

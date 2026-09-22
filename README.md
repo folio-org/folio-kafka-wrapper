@@ -63,6 +63,19 @@ KafkaConsumerWrapper<String, String> consumerWrapper = KafkaConsumerWrapper.<Str
 consumerWrapper.start(getHandler(), "mod-business-logic-1.2.4");
 ```
 
+The offset-reset strategy can be overridden for an individual consumer. When it is omitted, the
+consumer uses the global `kafka.consumer.auto.offset.reset` setting, which defaults to `earliest`.
+
+```java
+KafkaConsumerWrapper<String, String> consumerWrapper = KafkaConsumerWrapper.<String, String>builder()
+        .context(context)
+        .vertx(vertx)
+        .kafkaConfig(kafkaConfig)
+        .subscriptionDefinition(subscriptionDefinition)
+        .autoOffsetReset("latest")
+        .build();
+```
+
 Creating consumer wrapper over static consumer (when [group.instance.id](https://kafka.apache.org/documentation/#consumerconfigs_group.instance.id) is set)  
 Declaring static consumer using builder method:
 ```java
