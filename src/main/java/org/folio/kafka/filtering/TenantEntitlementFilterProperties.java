@@ -4,21 +4,21 @@ import org.folio.kafka.SimpleConfigurationReader;
 
 /**
  * Environment/system-property driven configuration for entitlement-based Kafka consumer
- * filtering. Off by default - a module opts in explicitly via {@code FOLIO_KAFKA_TENANT_FILTER_ENABLED}.
+ * filtering. Off by default - a module opts in explicitly via {@code KAFKA_TENANT_FILTER_ENABLED}.
  *
  * <p>Names match folio-spring-kafka's {@code folio.kafka.tenant-filter.*} Spring Boot properties, so both libraries
  * share the same env vars for the settings they have in common.
  */
 public final class TenantEntitlementFilterProperties {
 
-  public static final String ENABLED = "FOLIO_KAFKA_TENANT_FILTER_ENABLED";
-  public static final String TENANT_DISABLED_STRATEGY = "FOLIO_KAFKA_TENANT_FILTER_TENANT_DISABLED_STRATEGY";
+  public static final String ENABLED = "KAFKA_TENANT_FILTER_ENABLED";
+  public static final String TENANT_DISABLED_STRATEGY = "KAFKA_TENANT_FILTER_TENANT_DISABLED_STRATEGY";
   public static final String ALL_TENANTS_DISABLED_STRATEGY =
-    "FOLIO_KAFKA_TENANT_FILTER_ALL_TENANTS_DISABLED_STRATEGY";
+    "KAFKA_TENANT_FILTER_ALL_TENANTS_DISABLED_STRATEGY";
   public static final String ENTITLEMENT_REFRESH_INTERVAL_SECONDS =
-    "FOLIO_KAFKA_TENANT_FILTER_ENTITLEMENT_REFRESH_INTERVAL_SECONDS";
+    "KAFKA_TENANT_FILTER_ENTITLEMENT_REFRESH_INTERVAL_SECONDS";
   public static final String ENTITLEMENT_LOOKUP_TIMEOUT_SECONDS =
-    "FOLIO_KAFKA_TENANT_FILTER_ENTITLEMENT_LOOKUP_TIMEOUT_SECONDS";
+    "KAFKA_TENANT_FILTER_ENTITLEMENT_LOOKUP_TIMEOUT_SECONDS";
 
   private static final String ENABLED_DEFAULT = "false";
   private static final String TENANT_DISABLED_STRATEGY_DEFAULT = "SKIP";
