@@ -13,6 +13,7 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.folio.kafka.KafkaConfig;
+import org.folio.kafka.OffsetResetStrategy;
 import org.folio.kafka.services.KafkaEnvironmentProperties;
 
 /**
@@ -106,7 +107,7 @@ public final class TenantEntitlementFilterProvider {
     TenantEntitlementService service) {
     var consumerProps = kafkaConfig.getConsumerProps();
     consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "kafka-tenant-filter-entitlement-" + UUID.randomUUID());
-    consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+    consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, OffsetResetStrategy.LATEST.value());
     consumerProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
     consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
     consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());

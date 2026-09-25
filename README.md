@@ -72,7 +72,7 @@ KafkaConsumerWrapper<String, String> consumerWrapper = KafkaConsumerWrapper.<Str
         .vertx(vertx)
         .kafkaConfig(kafkaConfig)
         .subscriptionDefinition(subscriptionDefinition)
-        .autoOffsetReset("latest")
+        .autoOffsetReset(OffsetResetStrategy.LATEST)
         .build();
 ```
 

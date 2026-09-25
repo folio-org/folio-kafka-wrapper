@@ -16,30 +16,20 @@ class KafkaConsumerWrapperConfigurationTest {
 
     var consumerProperties = consumerWrapper.createConsumerProperties(CONSUMER_GROUP_SUFFIX);
 
-    assertEquals(KafkaConfig.KAFKA_CONSUMER_AUTO_OFFSET_RESET_CONFIG_DEFAULT,
+    assertEquals(KafkaConfig.KAFKA_CONSUMER_AUTO_OFFSET_RESET_CONFIG_DEFAULT.value(),
       consumerProperties.get(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG));
   }
 
   @Test
   void createConsumerProperties_positive_usesPerConsumerOverride() {
-    var consumerWrapper = consumerWrapper("latest");
+    var consumerWrapper = consumerWrapper(OffsetResetStrategy.LATEST);
 
     var consumerProperties = consumerWrapper.createConsumerProperties(CONSUMER_GROUP_SUFFIX);
 
     assertEquals("latest", consumerProperties.get(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG));
   }
 
-  @Test
-  void createConsumerProperties_positive_ignoresBlankOverride() {
-    var consumerWrapper = consumerWrapper(" ");
-
-    var consumerProperties = consumerWrapper.createConsumerProperties(CONSUMER_GROUP_SUFFIX);
-
-    assertEquals(KafkaConfig.KAFKA_CONSUMER_AUTO_OFFSET_RESET_CONFIG_DEFAULT,
-      consumerProperties.get(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG));
-  }
-
-  private static KafkaConsumerWrapper<String, String> consumerWrapper(String autoOffsetReset) {
+  private static KafkaConsumerWrapper<String, String> consumerWrapper(OffsetResetStrategy autoOffsetReset) {
     var kafkaConfig = KafkaConfig.builder()
       .kafkaHost("localhost")
       .kafkaPort("9092")

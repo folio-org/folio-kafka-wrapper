@@ -87,7 +87,7 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
    * Optional per-consumer override for {@link ConsumerConfig#AUTO_OFFSET_RESET_CONFIG}. When omitted,
    * the value from {@link KafkaConfig} is used.
    */
-  private final String autoOffsetReset;
+  private final OffsetResetStrategy autoOffsetReset;
 
   @Builder
   private KafkaConsumerWrapper(Vertx vertx, Context context, KafkaConfig kafkaConfig,
@@ -95,7 +95,7 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
                                GlobalLoadSensor globalLoadSensor,
                                ProcessRecordErrorHandler<K, V> processRecordErrorHandler,
                                BackPressureGauge<Integer, Integer, Integer> backPressureGauge, int loadLimit,
-                               String groupInstanceId, String autoOffsetReset) {
+                               String groupInstanceId, OffsetResetStrategy autoOffsetReset) {
     this.vertx = vertx;
     this.context = context;
     this.kafkaConfig = kafkaConfig;
@@ -166,8 +166,8 @@ public class KafkaConsumerWrapper<K, V> implements Handler<KafkaConsumerRecord<K
     consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG,
       KafkaTopicNameHelper.formatGroupName(subscriptionDefinition.getEventType(), consumerGroupSuffix));
     consumerProps.put(ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, groupInstanceId);
-    if (StringUtils.isNotBlank(autoOffsetReset)) {
-      consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, autoOffsetReset);
+    if (autoOffsetReset != null) {
+      consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, autoOffsetReset.value());
     }
     return consumerProps;
   }
