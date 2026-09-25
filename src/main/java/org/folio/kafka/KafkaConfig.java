@@ -17,7 +17,8 @@ import org.folio.kafka.interceptors.TenantIdCheckInterceptor;
 @ToString
 public class KafkaConfig {
   public static final String KAFKA_CONSUMER_AUTO_OFFSET_RESET_CONFIG = "kafka.consumer.auto.offset.reset";
-  public static final String KAFKA_CONSUMER_AUTO_OFFSET_RESET_CONFIG_DEFAULT = "earliest";
+  public static final OffsetResetStrategy KAFKA_CONSUMER_AUTO_OFFSET_RESET_CONFIG_DEFAULT =
+    OffsetResetStrategy.EARLIEST;
 
   public static final String KAFKA_CONSUMER_METADATA_MAX_AGE_CONFIG = "kafka.consumer.metadata.max.age.ms";
   public static final String KAFKA_CONSUMER_METADATA_MAX_AGE_CONFIG_DEFAULT = "30000";
@@ -172,7 +173,7 @@ public class KafkaConfig {
       KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS_CONFIG_DEFAULT));
     consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, SimpleConfigurationReader.getValue(
       List.of(KAFKA_CONSUMER_AUTO_OFFSET_RESET_CONFIG, SpringKafkaProperties.KAFKA_CONSUMER_AUTO_OFFSET_RESET),
-      KAFKA_CONSUMER_AUTO_OFFSET_RESET_CONFIG_DEFAULT));
+      KAFKA_CONSUMER_AUTO_OFFSET_RESET_CONFIG_DEFAULT.value()));
     consumerProps.put(ConsumerConfig.METADATA_MAX_AGE_CONFIG, SimpleConfigurationReader.getValue(
       List.of(KAFKA_CONSUMER_METADATA_MAX_AGE_CONFIG, SpringKafkaProperties.KAFKA_CONSUMER_METADATA_MAX_AGE),
       KAFKA_CONSUMER_METADATA_MAX_AGE_CONFIG_DEFAULT));

@@ -72,7 +72,7 @@ KafkaConsumerWrapper<String, String> consumerWrapper = KafkaConsumerWrapper.<Str
         .vertx(vertx)
         .kafkaConfig(kafkaConfig)
         .subscriptionDefinition(subscriptionDefinition)
-        .autoOffsetReset("latest")
+        .autoOffsetReset(OffsetResetStrategy.LATEST)
         .build();
 ```
 
@@ -108,7 +108,7 @@ consumerWrapper.setGroupInstanceId(groupInstanceId);
 ## Kafka Tenant Filtering
 
 Kafka tenant filtering allows `KafkaConsumerWrapper` to skip Kafka messages for tenants for which the module is not 
-enabled. Filtering is disabled by default. Modules can enable it by setting `FOLIO_KAFKA_TENANT_FILTER_ENABLED=true`.
+enabled. Filtering is disabled by default. Modules can enable it by setting `KAFKA_TENANT_FILTER_ENABLED=true`.
 
 This is the Vert.x/RMB counterpart to `folio-spring-kafka`'s tenant-aware `RecordFilterStrategy`,
 described in [folio-spring-support's README](https://github.com/folio-org/folio-spring-support#kafka-tenant-filtering) -
@@ -156,20 +156,20 @@ The entitled-tenants set is cached in-process and kept current three ways:
 
 ### Configuration
 
-| Environment variable                                               | Description                                                                        | Default | Example  |
-|--------------------------------------------------------------------|------------------------------------------------------------------------------------|---------|----------|
-| `FOLIO_KAFKA_TENANT_FILTER_ENABLED`                                | Enables entitlement-based filtering.                                               | `false` | `true`   |
-| `FOLIO_KAFKA_TENANT_FILTER_TENANT_DISABLED_STRATEGY`               | Strategy used when the message tenant is not entitled to the current module.       | `SKIP`  | `SKIP`   |
-| `FOLIO_KAFKA_TENANT_FILTER_ALL_TENANTS_DISABLED_STRATEGY`          | Strategy used when no tenants are entitled to the current module.                  | `FAIL`  | `SKIP`   |
-| `FOLIO_KAFKA_TENANT_FILTER_ENTITLEMENT_REFRESH_INTERVAL_SECONDS`   | How often, in seconds, the entitlement cache is fully re-fetched from the sidecar. | `900`   | `300`    |
-| `FOLIO_KAFKA_TENANT_FILTER_ENTITLEMENT_LOOKUP_TIMEOUT_SECONDS`     | Request timeout, in seconds, for each entitlement lookup call to the sidecar.      | `5`     | `10`     |
+| Environment variable                                        | Description                                                                        | Default | Example  |
+|-------------------------------------------------------------|------------------------------------------------------------------------------------|---------|----------|
+| `KAFKA_TENANT_FILTER_ENABLED`                               | Enables entitlement-based filtering.                                               | `false` | `true`   |
+| `KAFKA_TENANT_FILTER_TENANT_DISABLED_STRATEGY`              | Strategy used when the message tenant is not entitled to the current module.       | `SKIP`  | `SKIP`   |
+| `KAFKA_TENANT_FILTER_ALL_TENANTS_DISABLED_STRATEGY`         | Strategy used when no tenants are entitled to the current module.                  | `FAIL`  | `SKIP`   |
+| `KAFKA_TENANT_FILTER_ENTITLEMENT_REFRESH_INTERVAL_SECONDS`  | How often, in seconds, the entitlement cache is fully re-fetched from the sidecar. | `900`   | `300`    |
+| `KAFKA_TENANT_FILTER_ENTITLEMENT_LOOKUP_TIMEOUT_SECONDS`    | Request timeout, in seconds, for each entitlement lookup call to the sidecar.      | `5`     | `10`     |
 
 The following strategy values are supported:
 
-| Value    | Behavior                                                                                                                             |
-|----------|----------------------------------------------------------------------------------------------------------------------------------------|
-| `ACCEPT` | Accept the record and hand it to the business handler for normal processing.                                                        |
-| `SKIP`   | Skip the record without invoking the business handler. The offset still commits, same as a normally-processed record.               |
+| Value    | Behavior                                                                                                                                                                     |
+|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `ACCEPT` | Accept the record and hand it to the business handler for normal processing.                                                                                                 |
+| `SKIP`   | Skip the record without invoking the business handler. The offset still commits, same as a normally-processed record.                                                        |
 | `FAIL`   | Route the record to the configured `processRecordErrorHandler` (if any), the same way a business handler failure is; the offset still commits - there is no automatic retry. |
 
 ## Environment Variables
