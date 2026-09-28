@@ -11,6 +11,7 @@ import org.folio.kafka.SimpleConfigurationReader;
  */
 public final class TenantEntitlementFilterProperties {
 
+  public static final String OKAPI_URL = "OKAPI_URL";
   public static final String ENABLED = "KAFKA_TENANT_FILTER_ENABLED";
   public static final String TENANT_DISABLED_STRATEGY = "KAFKA_TENANT_FILTER_TENANT_DISABLED_STRATEGY";
   public static final String ALL_TENANTS_DISABLED_STRATEGY =
@@ -31,6 +32,10 @@ public final class TenantEntitlementFilterProperties {
 
   public static boolean isEnabled() {
     return Boolean.parseBoolean(SimpleConfigurationReader.getValue(ENABLED, ENABLED_DEFAULT));
+  }
+
+  public static String okapiUrl(String fallbackOkapiUrl) {
+    return SimpleConfigurationReader.getValue(OKAPI_URL, fallbackOkapiUrl);
   }
 
   public static DisabledTenantStrategy tenantDisabledStrategy() {
