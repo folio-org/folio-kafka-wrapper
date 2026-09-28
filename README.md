@@ -156,13 +156,14 @@ The entitled-tenants set is cached in-process and kept current three ways:
 
 ### Configuration
 
-| Environment variable                                        | Description                                                                        | Default | Example  |
-|-------------------------------------------------------------|------------------------------------------------------------------------------------|---------|----------|
-| `KAFKA_TENANT_FILTER_ENABLED`                               | Enables entitlement-based filtering.                                               | `false` | `true`   |
-| `KAFKA_TENANT_FILTER_TENANT_DISABLED_STRATEGY`              | Strategy used when the message tenant is not entitled to the current module.       | `SKIP`  | `SKIP`   |
-| `KAFKA_TENANT_FILTER_ALL_TENANTS_DISABLED_STRATEGY`         | Strategy used when no tenants are entitled to the current module.                  | `FAIL`  | `SKIP`   |
-| `KAFKA_TENANT_FILTER_ENTITLEMENT_REFRESH_INTERVAL_SECONDS`  | How often, in seconds, the entitlement cache is fully re-fetched from the sidecar. | `900`   | `300`    |
-| `KAFKA_TENANT_FILTER_ENTITLEMENT_LOOKUP_TIMEOUT_SECONDS`    | Request timeout, in seconds, for each entitlement lookup call to the sidecar.      | `5`     | `10`     |
+| Environment variable                                        | Description                                                                        | Default | Example                 |
+|-------------------------------------------------------------|------------------------------------------------------------------------------------|---------|-------------------------|
+| `OKAPI_URL`                                                 | Base URL used to query the colocated sidecar for module entitlements.              | -       | `http://localhost:8082` |
+| `KAFKA_TENANT_FILTER_ENABLED`                               | Enables entitlement-based filtering.                                               | `false` | `true`                  |
+| `KAFKA_TENANT_FILTER_TENANT_DISABLED_STRATEGY`              | Strategy used when the message tenant is not entitled to the current module.       | `SKIP`  | `SKIP`                  |
+| `KAFKA_TENANT_FILTER_ALL_TENANTS_DISABLED_STRATEGY`         | Strategy used when no tenants are entitled to the current module.                  | `FAIL`  | `SKIP`                  |
+| `KAFKA_TENANT_FILTER_ENTITLEMENT_REFRESH_INTERVAL_SECONDS`  | How often, in seconds, the entitlement cache is fully re-fetched from the sidecar. | `900`   | `300`                   |
+| `KAFKA_TENANT_FILTER_ENTITLEMENT_LOOKUP_TIMEOUT_SECONDS`    | Request timeout, in seconds, for each entitlement lookup call to the sidecar.      | `5`     | `10`                    |
 
 The following strategy values are supported:
 

@@ -44,7 +44,7 @@ public final class TenantEntitlementFilterProvider {
    * Returns the shared entitlement filter for the given module, creating it on first call.
    *
    * @param vertx the Vertx instance
-   * @param kafkaConfig Kafka client configuration, also used for {@code okapiUrl}
+   * @param kafkaConfig Kafka client configuration, also used as the fallback source for {@code okapiUrl}
    * @param moduleId current module id, for example {@code mod-foo-1.0.0}
    * @return the shared filter, or {@code null} if filtering is disabled or {@code moduleId} is blank
    */
@@ -65,7 +65,8 @@ public final class TenantEntitlementFilterProvider {
   private static TenantEntitlementFilter createFilter(Vertx vertx, KafkaConfig kafkaConfig, String moduleId) {
     LOGGER.info("createFilter:: Setting up tenant entitlement filter: moduleId = {}", moduleId);
 
-    var client = new WebClientTenantEntitlementClient(vertx, kafkaConfig.getOkapiUrl());
+    var okapiUrl = TenantEntitlementFilterProperties.okapiUrl(kafkaConfig.getOkapiUrl());
+    var client = new WebClientTenantEntitlementClient(vertx, okapiUrl);
     var service = new TenantEntitlementService(moduleId, client);
 
     var subscribed = startEntitlementEventConsumer(vertx, kafkaConfig, moduleId, service);
